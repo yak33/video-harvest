@@ -1,0 +1,55 @@
+{
+  "manifest_version": 2,
+  "name": "VideoHarvest",
+  "version": "0.1.0",
+  "description": "Download videos from almost any website. Direct media, HLS (m3u8) and DASH (mpd) supported.",
+  "permissions": [
+    "webRequest",
+    "downloads",
+    "storage",
+    "tabs",
+    "nativeMessaging",
+    "notifications",
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": [
+      "lib/browser-polyfill.js",
+      "lib/url-util.js",
+      "engine/hls.js",
+      "engine/dash.js",
+      "engine/engine.js",
+      "background/sniffer.js",
+      "background/sw.js"
+    ],
+    "persistent": true
+  },
+  "browser_action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "VideoHarvest"
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "videoharvest@local.dev",
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "web_accessible_resources": [
+    "engine/engine.html"
+  ]
+}

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>VideoHarvest 设置</title>
+<style>
+  body { font: 14px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif; max-width: 640px; margin: 32px auto; padding: 0 16px; color: #27272a; }
+  h1 { font-size: 20px; }
+  fieldset { border: 1px solid #e4e4e7; border-radius: 8px; padding: 16px; margin: 16px 0; }
+  legend { font-weight: 600; padding: 0 6px; }
+  label { display: block; margin: 10px 0 4px; }
+  input[type=text], input[type=number] { width: 100%; padding: 6px 8px; border: 1px solid #d4d4d8; border-radius: 6px; }
+  .hint { color: #71717a; font-size: 12px; }
+  button { padding: 8px 20px; border: 0; border-radius: 6px; background: #ea580c; color: #fff; font-weight: 600; cursor: pointer; }
+  #saved { color: #16a34a; margin-left: 10px; }
+</style>
+</head>
+<body>
+<h1>VideoHarvest 设置</h1>
+
+<fieldset>
+  <legend>下载</legend>
+  <label>分片并发数（HLS/DASH）</label>
+  <input type="number" id="concurrency" min="1" max="16">
+  <p class="hint">同时下载的 ts/fMP4 分片数量，默认 4。过高可能触发站点限速。</p>
+  <label>文件名模板</label>
+  <input type="text" id="nameTpl">
+  <p class="hint">可用变量：{title} 页面标题、{host} 站点域名、{date} 日期。默认 {title}</p>
+</fieldset>
+
+<fieldset>
+  <legend>Companion 转码（预留）</legend>
+  <label>Native messaging 主机名</label>
+  <input type="text" id="nativeHost" placeholder="dev.videoharvest.companion">
+  <p class="hint">用于调用本地 ffmpeg 合并/转码（MPEG-TS → MP4 无损封装等）。Companion App 为后续里程碑，当前版本留空即可。</p>
+</fieldset>
+
+<button id="save">保存</button><span id="saved"></span>
+
+<script src="../lib/browser-polyfill.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

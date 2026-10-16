@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header>
+  <img src="../icons/icon-32.png" alt="" class="logo">
+  <h1>VideoHarvest</h1>
+  <span id="count" class="count"></span>
+</header>
+<main id="list" class="list">
+  <div class="empty" id="empty">当前页面未检测到视频<br><small>播放视频后再打开本面板</small></div>
+</main>
+<footer>
+  <button id="refresh" title="刷新">↻ 刷新</button>
+  <button id="clear" title="清空列表">🗑 清空</button>
+  <a href="../options/options.html" target="_blank">设置</a>
+</footer>
+<template id="item-tpl">
+  <div class="item">
+    <div class="thumb-wrap">
+      <img class="thumb" src="" alt="">
+      <span class="duration"></span>
+    </div>
+    <div class="content">
+      <div class="row-title">
+        <span class="badge"></span>
+        <span class="name" title=""></span>
+      </div>
+      <div class="sub"></div>
+      <div class="actions">
+        <select class="variant-select"></select>
+        <button class="dl">↓ 下载</button>
+      </div>
+      <div class="progress"><div class="bar"></div></div>
+    </div>
+  </div>
+</template>
+<script src="../lib/browser-polyfill.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>
