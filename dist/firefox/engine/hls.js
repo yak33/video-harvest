@@ -60,6 +60,12 @@ const HLS = (() => {
         }
       }
     }
+    for (const v of variants) {
+      const match = audioTracks.find((a) => a.groupId === v.audioGroup) || audioTracks[0];
+      if (match) {
+        v.audioUrl = match.url;
+      }
+    }
     variants.sort((a, b) => b.bandwidth - a.bandwidth);
     variants.audioTracks = audioTracks;
     return variants;

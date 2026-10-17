@@ -67,6 +67,37 @@ function makeFilename(entry, ext, template = "{title}") {
   return `${base}.${ext}`;
 }
 
+// --- download filename tracker -------------------------------------------
+// Chromium 处理 blob: URL 下载时会将初始文件名覆盖为 blob 路径中的 UUID，
+// 必须通过 onDeterminingFilename 统一拦截并强制重命名为实际业务文件名。
+// @author ZHANGCHAO 2026/10/17
+const pendingFilenamesByUrl = new Map();
+const pendingFilenamesById = new Map();
+
+function trackDownloadFilename(url, id, filename) {
+  if (url && filename) {
+    pendingFilenamesByUrl.set(url, filename);
+    setTimeout(() => pendingFilenamesByUrl.delete(url), 120_000);
+  }
+  if (id && filename) {
+    pendingFilenamesById.set(id, filename);
+    setTimeout(() => pendingFilenamesById.delete(id), 120_000);
+  }
+}
+
+const downloadsApi = (typeof browser !== "undefined" && browser.downloads) ? browser.downloads : chrome.downloads;
+if (downloadsApi?.onDeterminingFilename) {
+  downloadsApi.onDeterminingFilename.addListener((item, suggest) => {
+    const desired = pendingFilenamesById.get(item.id) || pendingFilenamesByUrl.get(item.url);
+    if (desired) {
+      pendingFilenamesById.delete(item.id);
+      pendingFilenamesByUrl.delete(item.url);
+      suggest({ filename: desired, conflictAction: "uniquify" });
+      return true;
+    }
+  });
+}
+
 // --- job execution -------------------------------------------------------
 
 async function startDirectDownload(entry) {
@@ -74,23 +105,31 @@ async function startDirectDownload(entry) {
   const ext = entry.type === "audio"
     ? "mp3"
     : (entry.url.match(/\.(mp4|webm|mkv|mov|m4v|mp3|m4a|aac|ogg|opus|wav)(\?|#|$)/i)?.[1] || "mp4");
+  const filename = makeFilename(entry, ext.toLowerCase(), cfg.nameTpl);
+  trackDownloadFilename(entry.url, null, filename);
 
-  await browser.downloads.download({
+  const downloadId = await browser.downloads.download({
     url: entry.url,
-    filename: makeFilename(entry, ext.toLowerCase(), cfg.nameTpl),
+    filename,
     saveAs: true,
   });
+  if (downloadId) {
+    trackDownloadFilename(entry.url, downloadId, filename);
+  }
   return { ok: true, mode: "direct" };
 }
 
 async function startStreamJob(entry, variantUrl) {
   const cfg = await getSettings();
+  const chosenVariant = entry.variants?.find((v) => v.url === variantUrl);
   const job = {
     kind: entry.type, // hls | dash
+    masterUrl: entry.url, // 始终保留完整的 Master 清单地址，用于音视频分离流提取音频轨
     playlistUrl: variantUrl || entry.url,
     variantUrl: variantUrl,
+    audioUrl: chosenVariant?.audioUrl || null,
     referer: entry.referer || entry.url,
-    filename: makeFilename(entry, entry.type === "hls" ? "mp4" : "mp4", cfg.nameTpl),
+    filename: makeFilename(entry, "mp4", cfg.nameTpl),
     concurrency: cfg.concurrency || 4,
   };
 
@@ -135,12 +174,16 @@ browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     case "vh-trigger-download": {
       // Chrome MV3: 由 offscreen document 转发而来的 blob URL 下载请求
+      trackDownloadFilename(msg.url, null, msg.filename);
       browser.downloads.download({
         url: msg.url,
         filename: msg.filename,
         saveAs: true,
       })
-        .then((downloadId) => sendResponse({ ok: true, downloadId }))
+        .then((downloadId) => {
+          if (downloadId) trackDownloadFilename(msg.url, downloadId, msg.filename);
+          sendResponse({ ok: true, downloadId });
+        })
         .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
       return true; // keep channel open for async response
     }

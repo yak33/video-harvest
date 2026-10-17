@@ -143,17 +143,49 @@ const MediaSniffer = (() => {
 
   async function enrichWithTabMedia(tabId, entry) {
     if (tabId < 0) return;
+    const api = typeof browser !== "undefined" ? browser : chrome;
+
+    // 1. YouTube 页面特殊处理：直接通过 URL 解析 11 位 Video ID，获取官方高清缩略图
+    // 现代视频网站从不给 <video> 标签设 poster，且其 og:image 常为全站 Logo 图（如 yt_1200.png）
+    // @author ZHANGCHAO 2026/10/17
     try {
-      const api = chrome.scripting || (typeof browser !== "undefined" && browser.scripting);
-      if (!api) return;
-      const results = await api.executeScript({
+      const tab = await api.tabs.get(tabId);
+      const candidateUrl = tab?.url || entry.referer || "";
+      if (candidateUrl.includes("youtube.com") || candidateUrl.includes("youtu.be")) {
+        const ytMatch = candidateUrl.match(/(?:shorts\/|v=|\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+        if (ytMatch && ytMatch[1]) {
+          entry.thumbnail = `https://i.ytimg.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+        }
+      }
+    } catch { /* ignore */ }
+
+    try {
+      const scriptingApi = chrome.scripting || (typeof browser !== "undefined" && browser.scripting);
+      if (!scriptingApi) return;
+      const results = await scriptingApi.executeScript({
         target: { tabId, allFrames: true },
         func: () => {
           const videos = Array.from(document.querySelectorAll("video"));
           const activeVideo = videos.find((v) => !v.paused) || videos.find((v) => v.duration > 0) || videos[0];
-          const ogImg = document.querySelector('meta[property="og:image"]')?.getAttribute("content");
+
+          // 排除包含全站 Logo (如 yt_1200, logo, favicon) 的通用伪封面
+          const ogContent = document.querySelector('meta[property="og:image"]')?.getAttribute("content") || "";
+          const isGenericLogo = /yt_1200|logo|favicon|default_thumb/i.test(ogContent);
+          const validOgImg = isGenericLogo ? "" : ogContent;
+
+          // 探测页面内处于激活播放态的视频缩略图（如 YouTube Shorts 激活卡片）
+          let activeThumb = "";
+          if (location.hostname.includes("youtube.com")) {
+            const ytShortThumb = document.querySelector("ytd-reel-video-renderer[is-active] img, .ytp-cued-thumbnail-overlay-image");
+            if (ytShortThumb) {
+              const bg = ytShortThumb.style?.backgroundImage || "";
+              const bgMatch = bg.match(/url\(["']?([^"']+)["']?\)/);
+              activeThumb = bgMatch ? bgMatch[1] : (ytShortThumb.src || "");
+            }
+          }
+
           return {
-            poster: activeVideo?.poster || ogImg || "",
+            poster: activeVideo?.poster || validOgImg || activeThumb || "",
             duration: activeVideo?.duration ? Math.round(activeVideo.duration) : 0,
             title: document.title || "",
           };

@@ -16,6 +16,7 @@
     "scripts": [
       "lib/browser-polyfill.js",
       "lib/url-util.js",
+      "lib/mux.min.js",
       "engine/hls.js",
       "engine/dash.js",
       "engine/engine.js",

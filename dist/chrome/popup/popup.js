@@ -199,6 +199,11 @@ browser.runtime.onMessage.addListener((msg) => {
       bar.style.width = `${Math.round((msg.done / msg.total) * 100)}%`;
     });
   }
+  if (msg.phase === "transmuxing") {
+    document.querySelectorAll(".item .dl:disabled").forEach((btn) => {
+      btn.textContent = "封装中...";
+    });
+  }
 });
 
 document.getElementById("refresh").addEventListener("click", render);
