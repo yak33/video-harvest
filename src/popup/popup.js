@@ -67,12 +67,16 @@ async function render() {
       isNew = true;
     }
 
+    // 始终将最新的 entry 数据挂载到 DOM 元素上，杜绝闭包数据滞后
+    root._entry = entry;
+
     const thumb = root.querySelector(".thumb");
     const durEl = root.querySelector(".duration");
     const badge = root.querySelector(".badge");
     const name = root.querySelector(".name");
     const sub = root.querySelector(".sub");
     const select = root.querySelector(".variant-select");
+    const locateBtn = root.querySelector(".locate-btn");
     const btn = root.querySelector(".dl");
     const bar = root.querySelector(".progress");
 
@@ -96,10 +100,18 @@ async function render() {
     if (badge.textContent !== badgeText) badge.textContent = badgeText;
     badge.className = `badge ${entry.type}`;
 
-    // 标题更新
-    const titleText = entry.pageTitle || entry.url.split("/").pop().split("?")[0] || entry.url;
+    // 标题更新：优先使用带有推文作者和正文的标题，若仍为“主页 / X”则提取媒体识别特征避免混淆
+    let titleText = entry.pageTitle;
+    if (!titleText || titleText.trim() === "主页 / X" || titleText.trim() === "X") {
+      const twMatch = (entry.url || "").match(/(?:amplify_video|ext_tw_video)\/(\d+)/i);
+      if (twMatch) {
+        titleText = `X 视频 (${twMatch[1].slice(-6)})`;
+      } else {
+        titleText = entry.url.split("/").pop().split("?")[0] || entry.url;
+      }
+    }
     if (name.textContent !== titleText) name.textContent = titleText;
-    name.title = entry.url;
+    name.title = entry.pageUrl ? `${titleText}\n推文地址: ${entry.pageUrl}\n按住 Ctrl 点击可在新标签打开` : `${titleText}\n${entry.url}`;
 
     // 动态码率与预估大小更新
     let hostStr = "";
@@ -157,17 +169,43 @@ async function render() {
 
     refreshSubtitle(select.value || entry.url);
 
-    // 新增卡片时绑定下载事件
+    // 新增卡片时绑定事件
     if (isNew) {
+      const doLocate = async () => {
+        const curEntry = root._entry || entry;
+        try {
+          const curTab = await activeTab();
+          if (curTab?.id) {
+            await browser.runtime.sendMessage({
+              type: "vh-locate-media",
+              tabId: curTab.id,
+              entry: curEntry,
+            });
+          }
+        } catch {}
+      };
+
+      if (locateBtn) locateBtn.onclick = doLocate;
+      thumb.onclick = doLocate;
+      name.onclick = (e) => {
+        const curEntry = root._entry || entry;
+        if ((e.ctrlKey || e.metaKey) && curEntry.pageUrl) {
+          browser.tabs.create({ url: curEntry.pageUrl });
+          return;
+        }
+        doLocate();
+      };
+
       btn.onclick = async () => {
+        const curEntry = root._entry || entry;
         btn.disabled = true;
         btn.textContent = "处理中";
         bar.classList.add("on");
         try {
-          const chosenVariantUrl = (entry.variants?.length && select.value) ? select.value : entry.url;
+          const chosenVariantUrl = (curEntry.variants?.length && select.value) ? select.value : curEntry.url;
           const res = await browser.runtime.sendMessage({
             type: "vh-download",
-            entry,
+            entry: curEntry,
             variantUrl: chosenVariantUrl,
           });
           if (res && res.ok === false) {

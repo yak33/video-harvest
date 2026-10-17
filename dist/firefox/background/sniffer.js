@@ -146,7 +146,6 @@ const MediaSniffer = (() => {
     const api = typeof browser !== "undefined" ? browser : chrome;
 
     // 1. YouTube 页面特殊处理：直接通过 URL 解析 11 位 Video ID，获取官方高清缩略图
-    // 现代视频网站从不给 <video> 标签设 poster，且其 og:image 常为全站 Logo 图（如 yt_1200.png）
     // @author ZHANGCHAO 2026/10/17
     try {
       const tab = await api.tabs.get(tabId);
@@ -159,48 +158,156 @@ const MediaSniffer = (() => {
       }
     } catch { /* ignore */ }
 
+    // 2. 注入脚本精确定位推文/视频信息（杜绝多视频页面全局 og:image 跨视频污染导致货不对板）
+    // @author ZHANGCHAO 2026/10/17
     try {
       const scriptingApi = chrome.scripting || (typeof browser !== "undefined" && browser.scripting);
       if (!scriptingApi) return;
+
+      const twMatch = (entry.url || "").match(/(?:amplify_video|ext_tw_video)\/(\d+)/i);
+      const twitterMediaId = twMatch ? twMatch[1] : null;
+
       const results = await scriptingApi.executeScript({
         target: { tabId, allFrames: true },
-        func: () => {
-          const videos = Array.from(document.querySelectorAll("video"));
-          const activeVideo = videos.find((v) => !v.paused) || videos.find((v) => v.duration > 0) || videos[0];
+        args: [twitterMediaId, entry.duration || 0],
+        func: (mediaId, expectedDuration) => {
+          let poster = "";
+          let title = "";
+          let tweetUrl = "";
 
-          // 排除包含全站 Logo (如 yt_1200, logo, favicon) 的通用伪封面
-          const ogContent = document.querySelector('meta[property="og:image"]')?.getAttribute("content") || "";
-          const isGenericLogo = /yt_1200|logo|favicon|default_thumb/i.test(ogContent);
-          const validOgImg = isGenericLogo ? "" : ogContent;
-
-          // 探测页面内处于激活播放态的视频缩略图（如 YouTube Shorts 激活卡片）
-          let activeThumb = "";
-          if (location.hostname.includes("youtube.com")) {
-            const ytShortThumb = document.querySelector("ytd-reel-video-renderer[is-active] img, .ytp-cued-thumbnail-overlay-image");
-            if (ytShortThumb) {
-              const bg = ytShortThumb.style?.backgroundImage || "";
-              const bgMatch = bg.match(/url\(["']?([^"']+)["']?\)/);
-              activeThumb = bgMatch ? bgMatch[1] : (ytShortThumb.src || "");
+          // --- A. Twitter (X.com) 深度识别：按 mediaId 关联推文与海报 ---
+          if (mediaId) {
+            const img = document.querySelector(`img[src*="${mediaId}"]`);
+            if (img) {
+              poster = img.src || "";
+              const tweet = img.closest('article[data-testid="tweet"]');
+              if (tweet) {
+                const userEl = tweet.querySelector('div[data-testid="User-Name"]');
+                const textEl = tweet.querySelector('div[data-testid="tweetText"]');
+                const linkEl = tweet.querySelector('a[href*="/status/"]');
+                const user = userEl ? userEl.textContent.replace(/\s+/g, " ").trim() : "";
+                const text = textEl ? textEl.textContent.trim() : "";
+                if (linkEl?.href) tweetUrl = linkEl.href;
+                if (user || text) {
+                  title = text ? (user ? `${user}: ${text.slice(0, 45)}` : text.slice(0, 50)) : user;
+                }
+              }
             }
           }
 
-          return {
-            poster: activeVideo?.poster || validOgImg || activeThumb || "",
-            duration: activeVideo?.duration ? Math.round(activeVideo.duration) : 0,
-            title: document.title || "",
-          };
+          // 若在 Twitter status 详情页且未匹配到卡片，直接提取主推文
+          if (!title && (location.hostname.includes("x.com") || location.hostname.includes("twitter.com"))) {
+            if (location.pathname.includes("/status/")) {
+              const mainTweet = document.querySelector('article[data-testid="tweet"]');
+              if (mainTweet) {
+                const userEl = mainTweet.querySelector('div[data-testid="User-Name"]');
+                const textEl = mainTweet.querySelector('div[data-testid="tweetText"]');
+                const user = userEl ? userEl.textContent.replace(/\s+/g, " ").trim() : "";
+                const text = textEl ? textEl.textContent.trim() : "";
+                if (user || text) {
+                  title = text ? (user ? `${user}: ${text.slice(0, 45)}` : text.slice(0, 50)) : user;
+                }
+              }
+              const ogImg = document.querySelector('meta[property="og:image"]')?.getAttribute("content") || "";
+              if (!poster && ogImg && !/logo|favicon/i.test(ogImg)) {
+                poster = ogImg;
+              }
+            }
+          }
+
+          // --- B. 通用网页（B站、YouTube、微博等）处理 ---
+          if (!poster && !location.hostname.includes("x.com") && !location.hostname.includes("twitter.com")) {
+            const videos = Array.from(document.querySelectorAll("video"));
+            // 页面有多个视频时，必须按时长严格比对（误差 <= 2秒），禁止随意冒充
+            const matchedVideo = expectedDuration > 0
+              ? videos.find((v) => Math.abs(v.duration - expectedDuration) <= 2)
+              : (videos.find((v) => !v.paused) || (videos.length === 1 ? videos[0] : null));
+
+            if (matchedVideo?.poster) {
+              poster = matchedVideo.poster;
+            } else if (videos.length === 1) {
+              const ogImg = document.querySelector('meta[property="og:image"]')?.getAttribute("content") || "";
+              if (ogImg && !/yt_1200|logo|favicon|default_thumb/i.test(ogImg)) {
+                poster = ogImg;
+              }
+            }
+          }
+
+          return { poster, title, tweetUrl };
         },
       });
+
       for (const r of results || []) {
         const data = r?.result;
         if (data) {
           if (data.poster && !entry.thumbnail) entry.thumbnail = data.poster;
-          if (data.duration && !entry.duration) entry.duration = data.duration;
-          if (data.title && !entry.pageTitle) entry.pageTitle = data.title;
+          if (data.title && (!entry.pageTitle || entry.pageTitle.includes("主页") || entry.pageTitle === "X")) {
+            entry.pageTitle = data.title;
+          }
+          if (data.tweetUrl && !entry.pageUrl) {
+            entry.pageUrl = data.tweetUrl;
+          }
         }
       }
     } catch {
       /* ignore permission or restricted URL errors */
+    }
+  }
+
+  // 在网页中高亮平滑滚动到对应的视频或推文元素
+  // @author ZHANGCHAO 2026/10/17
+  async function locateMediaInTab(tabId, entry) {
+    if (!tabId || tabId < 0 || !entry) return { ok: false };
+    const scriptingApi = chrome.scripting || (typeof browser !== "undefined" && browser.scripting);
+    if (!scriptingApi) return { ok: false };
+
+    const twMatch = (entry.url || "").match(/(?:amplify_video|ext_tw_video)\/(\d+)/i);
+    const mediaId = twMatch ? twMatch[1] : null;
+
+    try {
+      await scriptingApi.executeScript({
+        target: { tabId, allFrames: true },
+        args: [mediaId, entry.duration || 0, entry.pageUrl || ""],
+        func: (mId, dur, targetUrl) => {
+          let targetEl = null;
+          if (mId) {
+            const img = document.querySelector(`img[src*="${mId}"]`);
+            targetEl = img?.closest('article[data-testid="tweet"]') || img;
+          }
+          if (!targetEl && targetUrl) {
+            try {
+              const path = new URL(targetUrl).pathname;
+              const link = document.querySelector(`a[href*="${path}"]`);
+              targetEl = link?.closest('article[data-testid="tweet"]') || link;
+            } catch {}
+          }
+          if (!targetEl && dur > 0) {
+            const videos = Array.from(document.querySelectorAll("video"));
+            targetEl = videos.find((v) => Math.abs(v.duration - dur) <= 2);
+          }
+          if (!targetEl) {
+            const videos = Array.from(document.querySelectorAll("video"));
+            targetEl = videos.find((v) => !v.paused) || videos[0];
+          }
+
+          if (targetEl) {
+            targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            const origOutline = targetEl.style.outline;
+            const origTransition = targetEl.style.transition;
+            targetEl.style.transition = "outline 0.2s ease-in-out";
+            targetEl.style.outline = "4px solid #ea580c";
+            setTimeout(() => {
+              targetEl.style.outline = origOutline;
+              targetEl.style.transition = origTransition;
+            }, 2500);
+            return true;
+          }
+          return false;
+        },
+      });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: String(err?.message || err) };
     }
   }
 
@@ -556,6 +663,15 @@ const MediaSniffer = (() => {
       // 将嗅探到的条目迁移/挂载到当前主标签页
       const targetMap = ensureTab(targetTabId);
       for (const item of captured) {
+        if (!item.pageTitle || item.pageTitle.includes("主页") || item.pageTitle === "X") {
+          try {
+            const parsed = new URL(inputUrl);
+            item.pageTitle = `${parsed.hostname}${parsed.pathname}`;
+          } catch {}
+        }
+        if (!item.pageUrl) {
+          item.pageUrl = inputUrl;
+        }
         targetMap.set(item.id, item);
       }
       updateBadge(targetTabId);
@@ -571,7 +687,7 @@ const MediaSniffer = (() => {
     }
   }
 
-  return { start, getList, clearTab, classify, parseCustomUrl };
+  return { start, getList, clearTab, classify, parseCustomUrl, locateMediaInTab };
 })();
 
 if (typeof module !== "undefined") module.exports = MediaSniffer;
