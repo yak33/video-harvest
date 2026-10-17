@@ -16,6 +16,10 @@
   <img src="https://img.shields.io/badge/Dependencies-Zero_NPM-blueviolet?style=flat-square" alt="Zero NPM" />
 </p>
 
+<p align="center">
+  <img src="screenshot_showcase.png" width="800" alt="VideoHarvest UI Showcase" />
+</p>
+
 ---
 
 ## 🌟 核心特性
