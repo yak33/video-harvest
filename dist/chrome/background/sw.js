@@ -8,11 +8,21 @@ if (typeof globalThis.browser === "undefined") {
   globalThis.browser = chrome;
 }
 
-// Chrome MV3: load deps into the service worker.
-// Note: importScripts resolves relative to sw.js location (/background/),
-// so we must use absolute extension paths (/lib/..., /background/...).
+// Chrome MV3: load deps into the service worker using standard relative paths.
 if (typeof importScripts === "function" && typeof MediaSniffer === "undefined") {
-  importScripts("/lib/url-util.js", "/engine/hls.js", "/background/sniffer.js");
+  try {
+    importScripts("../lib/url-util.js", "../engine/hls.js", "sniffer.js");
+  } catch (err) {
+    if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
+      importScripts(
+        chrome.runtime.getURL("lib/url-util.js"),
+        chrome.runtime.getURL("engine/hls.js"),
+        chrome.runtime.getURL("background/sniffer.js")
+      );
+    } else {
+      throw err;
+    }
+  }
 }
 
 MediaSniffer.start();
