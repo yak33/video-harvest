@@ -462,7 +462,116 @@ const MediaSniffer = (() => {
     });
   }
 
-  return { start, getList, clearTab, classify };
+  // 手动输入视频地址解析：同时支持流媒体直链与网页播放地址嗅探
+  // @author ZHANGCHAO 2026/10/17
+  async function parseCustomUrl(targetTabId, inputUrl) {
+    const api = typeof browser !== "undefined" ? browser : chrome;
+    if (!targetTabId) {
+      const [curTab] = await api.tabs.query({ active: true, currentWindow: true });
+      targetTabId = curTab?.id;
+    }
+
+    // 1. 尝试直接判断是否为媒体直链（HLS, DASH, Direct Video/Audio）
+    let directType = classify(inputUrl, "", "", 0);
+
+    // 若无法仅靠 URL 扩展名判定，发起轻量级探测以读取 Content-Type
+    let contentType = "";
+    let contentLength = 0;
+    if (!directType) {
+      try {
+        const headRes = await fetch(inputUrl, { method: "HEAD", credentials: "omit" }).catch(() => null);
+        if (headRes && headRes.ok) {
+          contentType = headRes.headers.get("content-type") || "";
+          contentLength = parseInt(headRes.headers.get("content-length"), 10) || 0;
+          directType = classify(inputUrl, contentType, "", contentLength);
+        }
+      } catch { /* ignore network error */ }
+    }
+
+    // --- 路径 A：直链流媒体 / 文件直接入库 ---
+    if (directType) {
+      await addEntry(targetTabId, {
+        url: inputUrl,
+        type: directType,
+        contentType,
+        size: contentLength,
+        referer: inputUrl,
+      });
+      notifyPopup(true);
+      return { ok: true, mode: "direct", type: directType };
+    }
+
+    // --- 路径 B：普通网页播放页，启动后台静默标签页嗅探 ---
+    let tempTab = null;
+    try {
+      tempTab = await api.tabs.create({ url: inputUrl, active: false });
+    } catch (err) {
+      throw new Error(`无法打开后台标签页进行嗅探: ${err.message || err}`);
+    }
+
+    const tempTabId = tempTab.id;
+    const initialCount = tabs.get(tempTabId)?.size || 0;
+
+    // 尝试在页面加载后执行静默播放触发请求
+    const triggerPlayScript = () => {
+      try {
+        const scriptingApi = chrome.scripting || (typeof browser !== "undefined" && browser.scripting);
+        if (scriptingApi) {
+          scriptingApi.executeScript({
+            target: { tabId: tempTabId, allFrames: true },
+            func: () => {
+              document.querySelectorAll("video, audio").forEach((el) => {
+                try { el.muted = true; el.play(); } catch {}
+              });
+            },
+          }).catch(() => {});
+        }
+      } catch {}
+    };
+
+    // 轮询检查该临时标签页是否捕获到了媒体资源（最多等待 15 秒）
+    const startTime = Date.now();
+    let captured = [];
+
+    try {
+      while (Date.now() - startTime < 15000) {
+        await new Promise((r) => setTimeout(r, 600));
+
+        // 每隔 2 秒尝试触发页面内 video 播放
+        if ((Date.now() - startTime) % 2000 < 600) {
+          triggerPlayScript();
+        }
+
+        const currentMap = tabs.get(tempTabId);
+        if (currentMap && currentMap.size > initialCount) {
+          captured = [...currentMap.values()];
+          break;
+        }
+      }
+
+      if (!captured.length) {
+        throw new Error("在目标网页中未检测到视频媒体请求，建议直接访问网页并播放视频后再打开插件");
+      }
+
+      // 将嗅探到的条目迁移/挂载到当前主标签页
+      const targetMap = ensureTab(targetTabId);
+      for (const item of captured) {
+        targetMap.set(item.id, item);
+      }
+      updateBadge(targetTabId);
+      notifyPopup(true);
+
+      return { ok: true, mode: "page_sniffed", count: captured.length };
+    } finally {
+      // 无论成功还是超时，必须安全关闭后台静默标签页
+      try {
+        await api.tabs.remove(tempTabId);
+        tabs.delete(tempTabId);
+      } catch {}
+    }
+  }
+
+  return { start, getList, clearTab, classify, parseCustomUrl };
 })();
 
 if (typeof module !== "undefined") module.exports = MediaSniffer;

@@ -216,4 +216,45 @@ document.getElementById("clear")?.addEventListener("click", async () => {
   }
 });
 
+// --- 自定义视频地址/网页地址输入解析 ---
+const customUrlInput = document.getElementById("custom-url");
+const parseUrlBtn = document.getElementById("parse-url");
+
+async function parseCustomUrl() {
+  const url = customUrlInput?.value?.trim();
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) {
+    alert("请输入以 http:// 或 https:// 开头的有效网址");
+    return;
+  }
+  parseUrlBtn.disabled = true;
+  parseUrlBtn.textContent = "解析中...";
+  try {
+    const tab = await activeTab();
+    const res = await browser.runtime.sendMessage({
+      type: "vh-parse-url",
+      url,
+      tabId: tab?.id,
+    });
+    if (!res || res.ok === false) {
+      throw new Error(res?.error || "未在此地址中提取到可下载的视频");
+    }
+    customUrlInput.value = "";
+    await render();
+  } catch (err) {
+    alert(err?.message || "解析失败");
+  } finally {
+    parseUrlBtn.disabled = false;
+    parseUrlBtn.textContent = "解析";
+  }
+}
+
+parseUrlBtn?.addEventListener("click", parseCustomUrl);
+customUrlInput?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    parseCustomUrl();
+  }
+});
+
 render();

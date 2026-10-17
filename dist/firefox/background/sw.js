@@ -160,6 +160,13 @@ browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return false;
     }
 
+    case "vh-parse-url": {
+      MediaSniffer.parseCustomUrl(msg.tabId, msg.url)
+        .then((res) => sendResponse(res))
+        .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+      return true; // keep channel open for async response
+    }
+
     case "vh-download": {
       const entry = msg.entry;
       const downloadTask = (entry.type === "video" || entry.type === "audio")
