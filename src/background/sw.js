@@ -8,19 +8,13 @@ if (typeof globalThis.browser === "undefined") {
   globalThis.browser = chrome;
 }
 
-// Chrome MV3: load deps into the service worker using standard relative paths.
+// Chrome MV3: load sniffer if not already bundled/inlined
 if (typeof importScripts === "function" && typeof MediaSniffer === "undefined") {
   try {
-    importScripts("../lib/url-util.js", "../engine/hls.js", "sniffer.js");
+    importScripts("sniffer.js");
   } catch (err) {
     if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
-      importScripts(
-        chrome.runtime.getURL("lib/url-util.js"),
-        chrome.runtime.getURL("engine/hls.js"),
-        chrome.runtime.getURL("background/sniffer.js")
-      );
-    } else {
-      throw err;
+      importScripts(chrome.runtime.getURL("background/sniffer.js"));
     }
   }
 }
