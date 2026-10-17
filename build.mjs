@@ -19,11 +19,12 @@ function build(target) {
   const manifest = JSON.parse(readFileSync(join(root, `manifest.${target}.json`), "utf8"));
   writeFileSync(join(out, "manifest.json"), JSON.stringify(manifest, null, 2));
 
-  // Chrome MV3: 将 sniffer.js 内联到 sw.js 顶部，消除 Service Worker 运行期 importScripts 网络错误
+  // Chrome MV3: 将 hls.js 与 sniffer.js 内联到 sw.js 顶部，消除 Service Worker 运行期 importScripts 网络错误与缺少 HLS 的问题
   if (target === "chrome") {
+    const hlsCode = readFileSync(join(out, "engine", "hls.js"), "utf8");
     const snifferCode = readFileSync(join(out, "background", "sniffer.js"), "utf8");
     const swCode = readFileSync(join(out, "background", "sw.js"), "utf8");
-    writeFileSync(join(out, "background", "sw.js"), `${snifferCode}\n\n${swCode}`);
+    writeFileSync(join(out, "background", "sw.js"), `${hlsCode}\n\n${snifferCode}\n\n${swCode}`);
   }
 
   // generate store upload zip using tar.exe (ensures POSIX forward-slash '/' path separators)

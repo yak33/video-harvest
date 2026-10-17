@@ -8,13 +8,24 @@ if (typeof globalThis.browser === "undefined") {
   globalThis.browser = chrome;
 }
 
-// Chrome MV3: load sniffer if not already bundled/inlined
-if (typeof importScripts === "function" && typeof MediaSniffer === "undefined") {
-  try {
-    importScripts("sniffer.js");
-  } catch (err) {
-    if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
-      importScripts(chrome.runtime.getURL("background/sniffer.js"));
+// Chrome MV3: load deps if not already bundled/inlined
+if (typeof importScripts === "function") {
+  if (typeof HLS === "undefined") {
+    try {
+      importScripts("../engine/hls.js");
+    } catch {
+      if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
+        try { importScripts(chrome.runtime.getURL("engine/hls.js")); } catch {}
+      }
+    }
+  }
+  if (typeof MediaSniffer === "undefined") {
+    try {
+      importScripts("sniffer.js");
+    } catch {
+      if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
+        try { importScripts(chrome.runtime.getURL("background/sniffer.js")); } catch {}
+      }
     }
   }
 }
@@ -61,7 +72,18 @@ function makeFilename(entry, ext, template = "{title}") {
   try {
     host = new URL(entry.url).hostname;
   } catch { /* ignore */ }
-  const title = sanitize(entry.pageTitle || host);
+  // 标题缺失时（如 X 上匹配不到推文的条目）必须拼上 URL 特征（X 用 mediaId 尾号），
+  // 否则同站所有视频下载后文件同名，用户无法分辨哪个是哪个。
+  // 注意 sanitize("") 会返回 "video"，必须先判空再 sanitize
+  // @author ZHANGCHAO 2026/10/17
+  let title = entry.pageTitle ? sanitize(entry.pageTitle) : "";
+  if (!title) {
+    const twMatch = (entry.url || "").match(/(?:amplify_video|ext_tw_video)\/(\d+)/i);
+    const tail = twMatch
+      ? twMatch[1].slice(-10)
+      : ((entry.url || "").split("/").pop() || "").split("?")[0].replace(/\.\w{1,5}$/, "").slice(0, 20);
+    title = `${host} ${tail}`.trim() || host;
+  }
   const date = new Date().toISOString().slice(0, 10);
   let base = template
     .replace(/{title}/g, title)

@@ -21,8 +21,8 @@ const MediaSniffer = (() => {
   const tabs = new Map();
   // Map of normalized subVariantUrl -> entryId (to avoid adding child variant m3u8 as standalone videos)
   const knownSubVariants = new Map();
-  // tabId -> origin (to reset only when navigating to a different domain)
-  const tabOrigins = new Map();
+  // tabId -> page key (origin+pathname), X/Twitter切换推文时强制清理媒体池
+  const tabPageKeys = new Map();
   // Set of normalized URLs currently in flight being inspected
   const inFlightInspections = new Set();
 
@@ -36,6 +36,11 @@ const MediaSniffer = (() => {
     } catch {
       return (url || "").split("?")[0].replace(/\/+$/, "").toLowerCase();
     }
+  }
+
+  // X/Twitter 媒体 ID：同一视频的所有清单（master/视频变体/音频轨道）共享此 ID
+  function twMediaIdOf(url) {
+    return (url || "").match(/(?:amplify_video|ext_tw_video)\/(\d+)/i)?.[1] || null;
   }
 
   function classify(url, contentType, resourceType, contentLength) {
@@ -103,8 +108,18 @@ const MediaSniffer = (() => {
 
   async function inspectHlsPlaylist(url) {
     try {
-      const res = await fetch(url);
-      if (!res.ok) return null;
+      // 优先携带凭据以支持 X 等站点的私有切片探测；若遇 CORS 限制自动平滑降级为普通请求
+      // @author ZHANGCHAO 2026/10/17
+      let res;
+      try {
+        res = await fetch(url, { credentials: "include" });
+      } catch {
+        res = await fetch(url);
+      }
+      if (!res.ok) {
+        res = await fetch(url).catch(() => null);
+      }
+      if (!res || !res.ok) return null;
       const text = await res.text();
 
       if (typeof HLS !== "undefined" && HLS.isMaster(text)) {
@@ -113,17 +128,22 @@ const MediaSniffer = (() => {
         // Peek first variant playlist to calculate exact video duration
         if (variants.length > 0) {
           try {
-            const vRes = await fetch(variants[0].url);
-            if (vRes.ok) {
+            let vRes;
+            try {
+              vRes = await fetch(variants[0].url, { credentials: "include" });
+            } catch {
+              vRes = await fetch(variants[0].url);
+            }
+            if (vRes && vRes.ok) {
               const vText = await vRes.text();
               duration = sumExtinfDuration(vText);
             }
           } catch { /* ignore */ }
         }
-        return { isMaster: true, variants, duration };
+        return { isMaster: true, variants, audioTracks: variants.audioTracks || [], duration };
       } else {
         const duration = sumExtinfDuration(text);
-        return { isMaster: false, variants: [], duration };
+        return { isMaster: false, variants: [], audioTracks: [], duration };
       }
     } catch {
       return null;
@@ -164,8 +184,7 @@ const MediaSniffer = (() => {
       const scriptingApi = chrome.scripting || (typeof browser !== "undefined" && browser.scripting);
       if (!scriptingApi) return;
 
-      const twMatch = (entry.url || "").match(/(?:amplify_video|ext_tw_video)\/(\d+)/i);
-      const twitterMediaId = twMatch ? twMatch[1] : null;
+      const twitterMediaId = twMediaIdOf(entry.url);
 
       const results = await scriptingApi.executeScript({
         target: { tabId, allFrames: true },
@@ -176,11 +195,19 @@ const MediaSniffer = (() => {
           let tweetUrl = "";
 
           // --- A. Twitter (X.com) 深度识别：按 mediaId 关联推文与海报 ---
+          // mediaId 是条目 URL 与推文卡片之间唯一的可靠纽带。匹配失败时绝不能
+          // 拿主推文冒充，否则推荐流视频全部显示成当前推文的标题和封面（点 A 下 B）。
+          // 匹配途径：未播放的封面 img[src] + 已播放的 video[poster]，两者都携带 mediaId
+          // @author ZHANGCHAO 2026/10/17
+          let mediaIdMatched = false;
           if (mediaId) {
             const img = document.querySelector(`img[src*="${mediaId}"]`);
-            if (img) {
-              poster = img.src || "";
-              const tweet = img.closest('article[data-testid="tweet"]');
+            const videoEl = img ? null : document.querySelector(`video[poster*="${mediaId}"]`);
+            const mediaEl = img || videoEl;
+            if (mediaEl) {
+              mediaIdMatched = true;
+              poster = (img ? img.src : videoEl.poster) || "";
+              const tweet = mediaEl.closest('article[data-testid="tweet"]');
               if (tweet) {
                 const userEl = tweet.querySelector('div[data-testid="User-Name"]');
                 const textEl = tweet.querySelector('div[data-testid="tweetText"]');
@@ -195,8 +222,9 @@ const MediaSniffer = (() => {
             }
           }
 
-          // 若在 Twitter status 详情页且未匹配到卡片，直接提取主推文
-          if (!title && (location.hostname.includes("x.com") || location.hostname.includes("twitter.com"))) {
+          // 主推文兜底仅适用于从 URL 中提取不到 mediaId 的 X 条目（如 broadcasts 等特殊流）；
+          // 有 mediaId 但未匹配到卡片的条目保持无标题，由弹窗显示 "X 视频 (id尾号)"
+          if (!mediaId && !title && (location.hostname.includes("x.com") || location.hostname.includes("twitter.com"))) {
             if (location.pathname.includes("/status/")) {
               const mainTweet = document.querySelector('article[data-testid="tweet"]');
               if (mainTweet) {
@@ -233,20 +261,41 @@ const MediaSniffer = (() => {
             }
           }
 
-          return { poster, title, tweetUrl };
+          let dur = 0;
+          if (matchedVideo?.duration) {
+            dur = Math.round(matchedVideo.duration);
+          }
+
+          return { poster, title, tweetUrl, mediaIdMatched, duration: dur };
         },
       });
 
       for (const r of results || []) {
         const data = r?.result;
-        if (data) {
+        if (!data) continue;
+
+        if (twitterMediaId) {
+          // X 条目：status 页的 tab.title 永远属于主推文，不代表本条目。
+          // 拿到匹配推文的标题才写入；任何形式的未命中都清空标题，
+          // 让弹窗显示 "X 视频 (id尾号)"，绝不允许主推文文字冒充
+          // @author ZHANGCHAO 2026/10/17
+          if (data.mediaIdMatched && data.title) {
+            entry.pageTitle = data.title;
+          } else {
+            entry.pageTitle = "";
+          }
+          if (data.poster && !entry.thumbnail) entry.thumbnail = data.poster;
+        } else {
           if (data.poster && !entry.thumbnail) entry.thumbnail = data.poster;
           if (data.title && (!entry.pageTitle || entry.pageTitle.includes("主页") || entry.pageTitle === "X")) {
             entry.pageTitle = data.title;
           }
-          if (data.tweetUrl && !entry.pageUrl) {
-            entry.pageUrl = data.tweetUrl;
-          }
+        }
+        if (data.tweetUrl && !entry.pageUrl) {
+          entry.pageUrl = data.tweetUrl;
+        }
+        if (data.duration && !entry.duration) {
+          entry.duration = data.duration;
         }
       }
     } catch {
@@ -261,8 +310,7 @@ const MediaSniffer = (() => {
     const scriptingApi = chrome.scripting || (typeof browser !== "undefined" && browser.scripting);
     if (!scriptingApi) return { ok: false };
 
-    const twMatch = (entry.url || "").match(/(?:amplify_video|ext_tw_video)\/(\d+)/i);
-    const mediaId = twMatch ? twMatch[1] : null;
+    const mediaId = twMediaIdOf(entry.url);
 
     try {
       await scriptingApi.executeScript({
@@ -271,8 +319,11 @@ const MediaSniffer = (() => {
         func: (mId, dur, targetUrl) => {
           let targetEl = null;
           if (mId) {
+            // 同 enrichWithTabMedia：封面 img 与已播放 video[poster] 双途径定位
             const img = document.querySelector(`img[src*="${mId}"]`);
-            targetEl = img?.closest('article[data-testid="tweet"]') || img;
+            const videoEl = img ? null : document.querySelector(`video[poster*="${mId}"]`);
+            const mediaEl = img || videoEl;
+            targetEl = mediaEl?.closest('article[data-testid="tweet"]') || mediaEl;
           }
           if (!targetEl && targetUrl) {
             try {
@@ -381,10 +432,17 @@ const MediaSniffer = (() => {
           if (existing.variants?.some((v) => normalizeUrl(v.url) === normUrl)) return;
         }
 
-        // 如果是单层媒体清单，但当前标签已有 Master 清单，直接静默丢弃
-        if (!hlsInfo.isMaster) {
-          const hasMasterInTab = [...map.values()].some((e) => e.variants?.length > 0);
-          if (hasMasterInTab) return;
+        // 同一 X 视频已存在 master 条目时，本单层清单必为其分离的音/视频子流，
+        // 独立入库只会产生"下载后只有画面/只有声音"的残缺条目
+        // @author ZHANGCHAO 2026/10/17
+        const myTwId = twMediaIdOf(info.url);
+        const iAmMaster = hlsInfo.isMaster && hlsInfo.variants && hlsInfo.variants.length > 0;
+        if (myTwId && !iAmMaster) {
+          for (const existing of map.values()) {
+            if (existing.type === "hls" && existing.variants?.length && twMediaIdOf(existing.url) === myTwId) {
+              return;
+            }
+          }
         }
 
         const entryId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -405,7 +463,7 @@ const MediaSniffer = (() => {
           foundAt: Date.now(),
         };
 
-        if (hlsInfo.isMaster && hlsInfo.variants && hlsInfo.variants.length > 0) {
+        if (iAmMaster) {
           for (const v of hlsInfo.variants) {
             const vNorm = normalizeUrl(v.url);
             knownSubVariants.set(vNorm, entryId);
@@ -413,18 +471,28 @@ const MediaSniffer = (() => {
               v.estimatedSize = Math.round((v.bandwidth * entry.duration) / 8);
             }
           }
+          // 独立音频轨道清单同样注册为子流：X 的视频变体不含音轨，
+          // 音频清单若独立入库，下载后只有声音没有画面
+          // @author ZHANGCHAO 2026/10/17
+          for (const a of hlsInfo.audioTracks || []) {
+            knownSubVariants.set(normalizeUrl(a.url), entryId);
+          }
           if (entry.variants[0]?.estimatedSize) {
             entry.estimatedSize = entry.variants[0].estimatedSize;
           }
 
-          // 清理在此之前可能误入的子流卡片
+          // 清理先于 master 入库的子流卡片：视频变体、音频轨道，以及同 mediaId 的
+          // 其他 HLS 清单（URL 可能因重定向/参数差异与 master 内容对不上，按 mediaId 兜底）
+          // @author ZHANGCHAO 2026/10/17
+          const childUrls = new Set(hlsInfo.variants.map((v) => normalizeUrl(v.url)));
+          for (const a of hlsInfo.audioTracks || []) {
+            childUrls.add(normalizeUrl(a.url));
+          }
           for (const [id, e] of map.entries()) {
             if (id === entryId) continue;
-            const eNorm = normalizeUrl(e.url);
-            const isChild = hlsInfo.variants.some((v) => normalizeUrl(v.url) === eNorm);
-            if (isChild || (e.type === "hls" && !e.variants?.length)) {
-              map.delete(id);
-            }
+            const isChild = childUrls.has(normalizeUrl(e.url));
+            const sameTwMedia = myTwId && e.type === "hls" && twMediaIdOf(e.url) === myTwId;
+            if (isChild || sameTwMedia) map.delete(id);
           }
         }
 
@@ -549,21 +617,24 @@ const MediaSniffer = (() => {
 
     api.tabs.onRemoved.addListener((tabId) => {
       tabs.delete(tabId);
-      tabOrigins.delete(tabId);
+      tabPageKeys.delete(tabId);
     });
 
-    // Reset detected media only when navigating to a different website domain
+    // 页面切换即清池：跨站导航或同站 SPA 路由变化（如 X 切换推文）都算换页。
+    // 旧页面的媒体条目若继续留在列表，其标题/封面会与新页面内容互相冒充，导致"点 A 下 B"
+    // @author ZHANGCHAO 2026/10/17
     api.tabs.onUpdated.addListener((tabId, change) => {
       if (change.url) {
         try {
-          const newOrigin = new URL(change.url).origin;
-          const oldOrigin = tabOrigins.get(tabId);
-          if (oldOrigin && oldOrigin !== newOrigin) {
+          const u = new URL(change.url);
+          const pageKey = `${u.origin}${u.pathname}`;
+          const oldKey = tabPageKeys.get(tabId);
+          if (oldKey && oldKey !== pageKey) {
             tabs.delete(tabId);
             updateBadge(tabId);
             notifyPopup();
           }
-          tabOrigins.set(tabId, newOrigin);
+          tabPageKeys.set(tabId, pageKey);
         } catch {}
       }
     });
@@ -691,3 +762,4 @@ const MediaSniffer = (() => {
 })();
 
 if (typeof module !== "undefined") module.exports = MediaSniffer;
+

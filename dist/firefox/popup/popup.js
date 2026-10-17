@@ -129,6 +129,9 @@ async function render() {
       if (entry.estimatedSize > 0) {
         return `~${fmtSize(entry.estimatedSize)}`;
       }
+      if (bw > 0) {
+        return `~${Math.round(bw / 1000)}kbps`;
+      }
       return "";
     }
 
@@ -152,6 +155,8 @@ async function render() {
           let optSizeStr = "";
           if (v.bandwidth > 0 && entry.duration > 0) {
             optSizeStr = ` (~${fmtSize(Math.round((v.bandwidth * entry.duration) / 8))})`;
+          } else if (v.bandwidth > 0) {
+            optSizeStr = ` (~${Math.round(v.bandwidth / 1000)}kbps)`;
           }
           opt.textContent = `MP4 ${v.name || "HD"}${optSizeStr}`;
           select.appendChild(opt);
