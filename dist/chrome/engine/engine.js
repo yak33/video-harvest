@@ -68,6 +68,46 @@ const EngineAPI = (() => {
     }
   }
 
+  // 智能媒体切片格式探测器：支持检测纯 TS、带 ID3 的 TS、ADTS AAC、fMP4 以及未知格式
+  // @author ZHANGCHAO 2026/10/17
+  function detectFormat(buf) {
+    if (!buf || buf.byteLength < 8) return "unknown";
+    const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+
+    // 1. 检查是否存在 ID3v2 头部
+    let offset = 0;
+    if (u8[0] === 0x49 && u8[1] === 0x44 && u8[2] === 0x33 && u8.byteLength >= 10) {
+      const id3Len = ((u8[6] & 0x7f) << 21) | ((u8[7] & 0x7f) << 14) | ((u8[8] & 0x7f) << 7) | (u8[9] & 0x7f);
+      offset = 10 + id3Len;
+    }
+
+    // 2. 检查 MPEG-2 TS（同步字节 0x47，相隔 188 字节连续出现）
+    if (offset < u8.byteLength && u8[offset] === 0x47) {
+      return "ts";
+    }
+    const scanLimit = Math.min(u8.byteLength - 376, 1024);
+    for (let i = offset; i < scanLimit; i++) {
+      if (u8[i] === 0x47 && u8[i + 188] === 0x47 && u8[i + 376] === 0x47) {
+        return "ts";
+      }
+    }
+
+    // 3. 检查 ADTS AAC（12 位全 1 的同步字 0xFFFx）
+    if (offset + 1 < u8.byteLength && u8[offset] === 0xff && (u8[offset + 1] & 0xf0) === 0xf0) {
+      return "aac";
+    }
+
+    // 4. 检查 ISO BMFF / fMP4（前 4 字节为 size，后 4 字节为合法的 box type）
+    if (u8.byteLength >= 8) {
+      const type = String.fromCharCode(u8[4], u8[5], u8[6], u8[7]);
+      if (["ftyp", "moov", "moof", "styp", "sidx"].includes(type)) {
+        return "fmp4";
+      }
+    }
+
+    return "unknown";
+  }
+
   // --- 纯前端 ISO BMFF fMP4 音视频混流工具 ---
   // 用于将独立视频轨道分片与独立音频轨道分片在容器级别无损合并为标准双轨道 MP4 (支持 DASH 与 HLS fMP4)
   // @author ZHANGCHAO 2026/10/17
@@ -170,7 +210,6 @@ const EngineAPI = (() => {
     const aMoov = aTopBoxes.find((b) => b.type === "moov");
 
     if (!vMoov || !aMoov) {
-      console.warn("Missing moov in init segments, skipping merge");
       return videoParts;
     }
 
@@ -184,7 +223,6 @@ const EngineAPI = (() => {
     const aMvex = aMoovSubs.find((b) => b.type === "mvex");
 
     if (!vTrak || !aTrak) {
-      console.warn("Missing trak in moov, skipping merge");
       return videoParts;
     }
 
@@ -380,15 +418,18 @@ const EngineAPI = (() => {
     let finalMime = "video/mp4";
     let finalExt = "mp4";
 
-    const isVideoTs = parts.length > 0 && new Uint8Array(parts[0])[0] === 0x47;
-    const isAudioTs = audioParts.length > 0 && new Uint8Array(audioParts[0])[0] === 0x47;
+    const videoFormat = parts.length > 0 ? detectFormat(parts[0]) : "unknown";
+    const audioFormat = audioParts.length > 0 ? detectFormat(audioParts[0]) : "unknown";
 
-    if (isVideoTs) {
+    const isVideoTs = videoFormat === "ts";
+    const isAudioTsOrAac = audioFormat === "ts" || audioFormat === "aac";
+
+    if (isVideoTs || isAudioTsOrAac) {
       report(job.id, { phase: "transmuxing" });
-      if (isAudioTs) {
-        // 音视频均为独立 TS 流：分别解复用并重封装为 fMP4，再合并双轨道
-        const vMp4 = await transmuxTsToMp4(parts);
-        const aMp4 = await transmuxTsToMp4(audioParts);
+      if (audioParts.length > 0) {
+        // 音视频分离流：分别将视频 TS 与音频 TS/AAC 通过 mux.js 转封装为 fMP4，再在容器层混流
+        const vMp4 = isVideoTs ? await transmuxTsToMp4(parts) : parts;
+        const aMp4 = isAudioTsOrAac ? await transmuxTsToMp4(audioParts) : audioParts;
         if (vMp4 && aMp4) {
           finalParts = mergeFmp4(vMp4, aMp4);
           finalMime = "video/mp4";
@@ -399,7 +440,7 @@ const EngineAPI = (() => {
           finalExt = vMp4 ? "mp4" : "ts";
         }
       } else {
-        // 单 TS 流（音视频已在切片内复合）
+        // 单 TS 流（音视频复合）
         const mp4Parts = await transmuxTsToMp4(parts);
         if (mp4Parts && mp4Parts.length > 0) {
           finalParts = mp4Parts;
