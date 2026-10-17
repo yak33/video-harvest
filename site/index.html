@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VideoHarvest — 全能网页流媒体视频下载扩展</title>
+  <meta name="description" content="全能跨浏览器网页流媒体视频下载扩展，支持 HLS、DASH、MP4、AES-128 解密与音画自动合轨。零外部生产依赖，原生双核支持 Chrome MV3 与 Firefox MV2。">
+  <link rel="icon" type="image/png" href="icons/icon-32.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 背景光晕氛围 -->
+  <div class="glow-bg"></div>
+  <div class="glow-bg-secondary"></div>
+
+  <!-- 顶部导航 -->
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="#" class="brand">
+        <img src="icons/icon-32.png" alt="VideoHarvest" class="brand-logo">
+        <span class="brand-name">VideoHarvest</span>
+        <span class="version-tag">v0.1.0</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#features">核心特性</a>
+        <a href="#interactive-demo">在线演示</a>
+        <a href="#protocols">协议支持</a>
+        <a href="#install">安装指南</a>
+        <a href="#faq">常见问题</a>
+      </nav>
+      <div class="nav-actions">
+        <a href="https://github.com/yak33/video-harvest" target="_blank" class="btn btn-secondary btn-sm" id="github-star-btn">
+          <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+        <a href="#install" class="btn btn-primary btn-sm">免费获取</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero 区域 -->
+  <main>
+    <section class="hero">
+      <div class="hero-content">
+        <div class="badge-pill">
+          <span class="pulse-dot"></span>
+          <span>纯原生高性能 · 零 NPM 运行时生产依赖</span>
+        </div>
+        <h1 class="hero-title">
+          网页流媒体视频下载，<br>
+          <span class="gradient-text">从未如此简单与从容</span>
+        </h1>
+        <p class="hero-subtitle">
+          深度解析 HLS、DASH 与各类音视频直链。独创 Canvas 现场抓帧与悬停微预览，一套代码优雅双核驱动 Chrome Manifest V3 与 Firefox Manifest V2。
+        </p>
+        <div class="hero-cta-group">
+          <a href="https://github.com/yak33/video-harvest/archive/refs/heads/main.zip" class="btn btn-primary btn-lg">
+            <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            <span>直接下载安装包</span>
+          </a>
+          <a href="#interactive-demo" class="btn btn-outline btn-lg">
+            <span>在线试玩体验</span>
+            <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </a>
+        </div>
+        <div class="hero-stats">
+          <div class="stat-item">
+            <span class="stat-num">0</span>
+            <span class="stat-label">生产第三方依赖</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-num">100%</span>
+            <span class="stat-label">真实画面首帧还原</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-num">MV3 / MV2</span>
+            <span class="stat-label">双浏览器内核支持</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 逼真交互模拟器 -->
+      <div class="hero-preview" id="interactive-demo">
+        <div class="mockup-frame">
+          <div class="mockup-header">
+            <div class="mockup-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <div class="mockup-title">VideoHarvest 交互体验模拟器（悬停可微预览）</div>
+            <div class="mockup-badge">LIVE DEMO</div>
+          </div>
+          
+          <div class="sim-panel">
+            <div class="sim-header">
+              <div class="sim-brand">
+                <img src="icons/icon-32.png" alt="" class="sim-logo">
+                <h2>VideoHarvest</h2>
+              </div>
+              <span class="sim-count" id="sim-count">2 个视频</span>
+            </div>
+
+            <div class="sim-url-bar">
+              <input type="text" id="sim-url-input" placeholder="粘贴视频直链 (m3u8/mpd/mp4) 或网页地址..." value="https://example.com/stream/index.m3u8">
+              <button id="sim-parse-btn">解析</button>
+            </div>
+
+            <div class="sim-list" id="sim-list">
+              <!-- 卡片 1 (HLS 示例) -->
+              <div class="sim-item" data-id="hls-1">
+                <div class="sim-thumb-wrap" title="悬停预览视频画面">
+                  <div class="sim-thumb" id="sim-thumb-canvas-1"></div>
+                  <div class="sim-preview-overlay">
+                    <span class="preview-tag">▶ 播放中</span>
+                  </div>
+                  <span class="sim-duration">01:51</span>
+                </div>
+                <div class="sim-content">
+                  <div class="sim-row-title">
+                    <span class="sim-badge hls">HLS</span>
+                    <span class="sim-name">科技前沿：下一代太空探索高清纪录片</span>
+                  </div>
+                  <div class="sim-sub" id="sim-sub-1">video.twimg.com · ~99.8MB · 01:51</div>
+                  <div class="sim-actions">
+                    <select class="sim-select" id="sim-select-1">
+                      <option value="1920" data-size="99.8MB">MP4 1920p (~99.8MB)</option>
+                      <option value="1280" data-size="45.2MB">MP4 1280p (~45.2MB)</option>
+                      <option value="720" data-size="24.1MB">MP4 720p (~24.1MB)</option>
+                    </select>
+                    <button class="sim-locate-btn">定位</button>
+                    <button class="sim-dl-btn" id="sim-dl-1">↓ 下载</button>
+                  </div>
+                  <div class="sim-progress" id="sim-progress-1">
+                    <div class="sim-progress-bar"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 卡片 2 (MP4 直链示例) -->
+              <div class="sim-item" data-id="mp4-2">
+                <div class="sim-thumb-wrap" title="悬停预览视频画面">
+                  <div class="sim-thumb" id="sim-thumb-canvas-2"></div>
+                  <div class="sim-preview-overlay">
+                    <span class="preview-tag">▶ 播放中</span>
+                  </div>
+                  <span class="sim-duration">04:32</span>
+                </div>
+                <div class="sim-content">
+                  <div class="sim-row-title">
+                    <span class="sim-badge video">MP4</span>
+                    <span class="sim-name">开源力量：构建零依赖现代浏览器扩展</span>
+                  </div>
+                  <div class="sim-sub">cdn.media-harvest.org · 184MB · 04:32</div>
+                  <div class="sim-actions">
+                    <select class="sim-select" disabled>
+                      <option>原画 MP4 (184MB)</option>
+                    </select>
+                    <button class="sim-locate-btn">定位</button>
+                    <button class="sim-dl-btn" id="sim-dl-2">↓ 下载</button>
+                  </div>
+                  <div class="sim-progress" id="sim-progress-2">
+                    <div class="sim-progress-bar"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sim-footer">
+              <button class="sim-footer-btn" id="sim-refresh-btn">↻ 刷新</button>
+              <button class="sim-footer-btn" id="sim-clear-btn">🗑 清空</button>
+              <span class="sim-footer-link">设置</span>
+            </div>
+          </div>
+          <div class="mockup-hint">
+            💡 试一试：把鼠标移到左侧<strong>封面缩略图</strong>上体验微预览，或点击<strong>【↓ 下载】</strong>观察实时分片进度！
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 核心特性展示 -->
+    <section class="section" id="features">
+      <div class="section-header">
+        <h2 class="section-title">为极致体验而生的六大技术创新</h2>
+        <p class="section-subtitle">拒绝臃肿与虚高，回归最纯粹、稳定且强大的现代工程水准</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon icon-amber">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">全协议混流引擎</h3>
+          <p class="feature-desc">
+            全协议支持 HLS (m3u8)、DASH (mpd) 以及普通 MP4/WebM 直链。内置 CMAF/fMP4 与 MPEG-TS 音视频自适应合并算法，告别“只有画面没有声音”。
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon icon-blue">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">鼠标悬停动态微预览</h3>
+          <p class="feature-desc">
+            独创轻量 MSE 缓冲微播方案。无需点击进入，鼠标移入缩略图 160ms 即刻静音流畅动起来；离开即刻销毁播放器，绝对零资源泄漏。
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon icon-purple">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
+              <path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">Canvas 现场抓帧与多级封面</h3>
+          <p class="feature-desc">
+            针对 Twitter/X 等动态卸载 DOM 封面的单页流媒体，直接通过 Canvas 对当前正在播放的视频画面现场精准截帧，100% 还原真实视频封面。
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon icon-green">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">下载状态池持久化</h3>
+          <p class="feature-desc">
+            点击下载后关闭弹窗？后台下载任务继续高速推进！再次打开扩展面板时，状态池秒级自动复原百分比与进度动画，所见即所得。
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon icon-red">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">主动 DOM 探测与流重载引导</h3>
+          <p class="feature-desc">
+            刷新按钮不再是简单的重绘视图。一键主动向当前网页注入探测器扫描直链；如发现已被清空的 Blob 流，智能提供重载网页一键恢复捕获。
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon icon-cyan">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">AES-128 在线解密与隐私防护</h3>
+          <p class="feature-desc">
+            支持标准 `#EXT-X-KEY:METHOD=AES-128` 在线拉取密钥自动解密，所有拼接与封装均在本地浏览器沙盒完成，绝不向第三方上传任何数据。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 协议与格式支持矩阵 -->
+    <section class="section section-dark" id="protocols">
+      <div class="section-header">
+        <h2 class="section-title">全方位流媒体格式支持矩阵</h2>
+        <p class="section-subtitle">几乎涵盖主流流媒体分发协议与封装规范</p>
+      </div>
+
+      <div class="table-container">
+        <table class="protocol-table">
+          <thead>
+            <tr>
+              <th>分类</th>
+              <th>支持格式 / 特性</th>
+              <th>技术实现</th>
+              <th>兼容性说明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="tag-pill tag-orange">HLS</span></td>
+              <td>MPEG-TS / fMP4 (CMAF) / Master 多清晰度</td>
+              <td>原生 HLS Parser + Mux.js 重封装</td>
+              <td>自动聚合所有码率，音画自适应同步</td>
+            </tr>
+            <tr>
+              <td><span class="tag-pill tag-blue">DASH</span></td>
+              <td>MPD / SegmentTemplate / Timeline</td>
+              <td>自研轻量 DASH 清单解析器</td>
+              <td>支持时间戳与编号模式分片映射</td>
+            </tr>
+            <tr>
+              <td><span class="tag-pill tag-green">加密流</span></td>
+              <td>AES-128 在线解密 / IV 向量自旋</td>
+              <td>Web Crypto API (SubtleCrypto)</td>
+              <td>原生硬件级加速解密，毫秒级流转</td>
+            </tr>
+            <tr>
+              <td><span class="tag-pill tag-purple">普通直链</span></td>
+              <td>MP4 / WebM / FLV / MKV / MP3 / AAC</td>
+              <td>Chrome / Firefox downloads API</td>
+              <td>断点直链秒级触发原生下载</td>
+            </tr>
+            <tr>
+              <td><span class="tag-pill tag-cyan">微预览</span></td>
+              <td>HLS MSE 切片解码 + 直链直接播放</td>
+              <td>hls.light.min.js + HTML5 Video</td>
+              <td>静音带防抖，离开即刻释放连接</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 安装使用流程 -->
+    <section class="section" id="install">
+      <div class="section-header">
+        <h2 class="section-title">三步快速上手安装</h2>
+        <p class="section-subtitle">零编译难度，解压即用</p>
+      </div>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">01</div>
+          <h3 class="step-title">获取代码与构建</h3>
+          <p class="step-desc">克隆仓库并使用原生 Node.js 进行单命令打包：</p>
+          <pre class="code-block"><code>git clone https://github.com/yak33/video-harvest.git
+cd video-harvest
+node build.mjs</code></pre>
+        </div>
+
+        <div class="step-card">
+          <div class="step-num">02</div>
+          <h3 class="step-title">载入浏览器扩展</h3>
+          <p class="step-desc"><strong>Chrome / Edge</strong>：访问 <code>chrome://extensions</code> 开启开发者模式，点击「加载已解压的扩展程序」，选择 <code>dist/chrome</code> 文件夹。</p>
+          <p class="step-desc"><strong>Firefox</strong>：访问 <code>about:debugging</code>，选择 <code>dist/firefox/manifest.json</code> 临时载入。</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-num">03</div>
+          <h3 class="step-title">打开网页尽情收割</h3>
+          <p class="step-desc">在任意网页播放视频，点击右上角 VideoHarvest 扩展图标，即可自由预览清晰度、悬停看画面，并一键高速下载！</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ 常见问题 -->
+    <section class="section section-dark" id="faq">
+      <div class="section-header">
+        <h2 class="section-title">常见问题解答</h2>
+        <p class="section-subtitle">解开您关心的每一个疑问</p>
+      </div>
+
+      <div class="faq-container">
+        <details class="faq-item" open>
+          <summary class="faq-question">
+            <span>为什么 VideoHarvest 坚持零 NPM 运行时生产依赖？</span>
+            <span class="faq-icon">+</span>
+          </summary>
+          <div class="faq-answer">
+            现代浏览器扩展追求极高的稳定性、安全合规性与即时响应。零外部打包器使得项目源码清晰可审计，审查打包时毫秒级完成，杜绝臃肿的 node_modules 带来的供应链安全风险。
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">
+            <span>为什么部分视频下载后其他工具只有画面没有声音，而 VideoHarvest 有？</span>
+            <span class="faq-icon">+</span>
+          </summary>
+          <div class="faq-answer">
+            很多流媒体（如 Twitter/X 及各大流媒体站）的 1080p 高清视频将音频和视频切片分离存放。普通插件如果只抓取了视频流，下载出来的文件就会缺少音频轨。VideoHarvest 在解析 Master 清单时自动识别关联音频，并在下载时通过 Mux 引擎自动将音轨与画轨完美合并输出为完整的 MP4 文件。
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">
+            <span>遇到部分页面播放后没有检测到视频怎么办？</span>
+            <span class="faq-icon">+</span>
+          </summary>
+          <div class="faq-answer">
+            您可以点击弹窗左下角的【刷新】按钮，插件将主动注入脚本扫描当前网页 DOM 中的所有视频直链；若网络流此前被清空，还可根据引导一键重新加载当前网页重新捕获。此外，您也可以使用顶部的自定义解析栏直接粘贴链接进行解析。
+          </div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <img src="icons/icon-32.png" alt="" class="footer-logo">
+        <span class="footer-title">VideoHarvest</span>
+        <p class="footer-desc">极速、轻量、纯粹的现代化网页流媒体下载扩展。</p>
+      </div>
+      <div class="footer-links">
+        <div class="footer-col">
+          <h4>资源导航</h4>
+          <a href="#features">功能介绍</a>
+          <a href="#interactive-demo">在线试玩</a>
+          <a href="#protocols">支持协议</a>
+          <a href="#install">安装文档</a>
+        </div>
+        <div class="footer-col">
+          <h4>开源社区</h4>
+          <a href="https://github.com/yak33/video-harvest" target="_blank">GitHub 仓库</a>
+          <a href="https://github.com/yak33/video-harvest/issues" target="_blank">问题反馈 (Issues)</a>
+          <a href="https://github.com/yak33/video-harvest/blob/main/README.md" target="_blank">开发指南</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 VideoHarvest. MIT License. Made with 🧡 by <strong>ZHANGCHAO</strong></p>
+      <p class="disclaimer">免责声明：本扩展仅供合法的个人学习、离线研究及受版权方授权的内容备份使用。</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

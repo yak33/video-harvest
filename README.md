@@ -1,99 +1,134 @@
 # VideoHarvest
 
-> **全能网页流媒体视频下载扩展（对标 Video DownloadHelper）**  
-> 一套代码同时支持 **Chrome（Manifest V3）** 与 **Firefox（Manifest V2）**，支持直链音视频、HLS（m3u8 多码率流、AES-128 解密、fMP4/CMAF、ByteRange）、DASH（MPD，SegmentTemplate/SegmentTimeline）。
+<p align="center">
+  <img src="src/icons/icon-128.png" width="96" height="96" alt="VideoHarvest Logo" />
+</p>
+
+<p align="center">
+  <strong>全能跨浏览器网页流媒体视频下载扩展</strong><br>
+  极速嗅探 · 零外部运行依赖 · 原生音视频混流 · 动态悬停微预览
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white" alt="Chrome MV3" />
+  <img src="https://img.shields.io/badge/Firefox-Manifest_V2-FF7139?style=flat-square&logo=firefoxbrowser&logoColor=white" alt="Firefox MV2" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" />
+  <img src="https://img.shields.io/badge/Dependencies-Zero_NPM-blueviolet?style=flat-square" alt="Zero NPM" />
+</p>
 
 ---
 
-## 一、 功能特性
+## 🌟 核心特性
 
-* 🎬 **智能媒体嗅探与防碎片污染**：
-  * 基于 `webRequest` 深度监听网络请求头与媒体类型；
-  * 内置智能分片过滤，自动剔除 `init.mp4`、`init.m4s`、`.ts` 等微小切片碎片，避免列表被刷屏；
-  * 自动过滤 `< 150KB` 的临时探测请求，只保留真实完整的媒体文件。
-* 🎚️ **多码率自动聚合（清晰度下拉选单）**：
-  * 自动解析 HLS Master Playlist，将 1080p、720p、480p 等子码率收拢至**同一个视频卡片**；
-  * 提供清晰度下拉切换器（如 `MP4 720p`、`MP4 480p`），用户可自主选择期望分辨率下载。
-* 🖼️ **视频封面与精确时长展示**：
-  * 自动抓取网页内 `<video poster>` 缩略图；
-  * 通过解析 HLS `#EXTINF` 自动精确累加视频时长（如 `00:56`），并在封面角标清晰标注。
-* ⚡ **多协议流媒体下载引擎**：
-  * **直链下载**：MP4、WebM、FLV、MKV、MP3、AAC、OGG 等常规音视频；
-  * **HLS (m3u8)**：支持标准 MPEG-TS、fMP4 (CMAF)、`#EXT-X-BYTERANGE` 范围请求，以及 AES-128 在线解密；
-  * **DASH (mpd)**：支持 `SegmentTemplate`（`$Number$`、`$Time$` 时间戳模式）及 `SegmentList`。
-* 🔗 **自定义视频地址提取与解析**：
-  * 支持在弹窗顶部直接粘贴 `m3u8`、`mpd`、`mp4` 等媒体直链秒级解析并加入下载列表；
-  * 支持输入普通网页播放页链接，由后台静默标签页自动加载并嗅探提取视频流，无需跳转。
-* ⚙️ **灵活配置中心**：
-  * 支持自定义分片下载并发数（1 ~ 16 线程）；
-  * 支持文件名自定义模板（支持 `{title}` 页面标题、`{host}` 域名、`{date}` 日期变量）。
+### 1. 全协议流媒体下载引擎
+* **直链音视频**：支持 MP4、WebM、FLV、MKV、MP3、AAC、OGG 等常见直链格式；
+* **HLS (m3u8)**：
+  * 支持标准 MPEG-TS、fMP4 (CMAF)、`#EXT-X-BYTERANGE` 范围请求；
+  * 原生支持 **AES-128** 密文切片在线解密；
+  * 自动将分段音频轨与视频轨进行自适应重封装（Remux），确保下载文件音画同步；
+* **DASH (mpd)**：支持 `SegmentTemplate`（`$Number$`、`$Time$` 时间戳模式）及 `SegmentList`。
+
+### 2. 极致的媒体嗅探与精准识别
+* **智能去噪防碎片**：基于 `webRequest` 深度监听底层网络流，自动过滤 `init.mp4`、`init.m4s`、`.ts` 等碎片以及 `< 150KB` 的探测请求；
+* **清晰度聚合与多码率收拢**：自动解析 Master Playlist，将 1080p、720p、480p 等子流归拢在**同一个视频卡片**下，并提供下拉选单与预估体积；
+* **Canvas 现场抓帧与多级封面**：
+  * 面对 Twitter/X 等动态卸载封面 DOM 的流媒体网页，嗅探器直接通过 Canvas 对正在播放的 `<video>` 现场抓取高清首帧，100% 还原真实播放画面；
+  * 结合推文正文大图穿透与时长严格比对，彻底杜绝“货不对板”或“黑屏占位”。
+
+### 3. 缩略图鼠标悬停动态微预览
+* **秒级静音预览**：将鼠标悬停在卡片缩略图上，视频自动静音循环播放微预览；
+* **轻量级 HLS 切片解压**：内置轻量 MSE 播放内核，HLS 流自适应拉取前几秒切片微播，移出即销毁，零多余网络与内存占用；
+* **智能防抖**：内置 160ms 防抖算法，避免鼠标快速掠过卡片时发起非预期网络请求。
+
+### 4. 下载任务持久化与后台同步
+* **随关随开，无缝追踪**：在扩展弹窗中点击下载后，即使关闭面板，后台下载与混流任务依然稳步推进；再次打开面板时秒级恢复下载百分比与进度动画。
+
+### 5. 主动重新检测与智能重载引导
+* **主动 DOM 探测**：点击左下角【刷新】按钮，自动注入扫描脚本检测页面上所有 `<video>`、`<audio>` 与直链媒体；
+* **流媒体恢复引导**：若用户此前清空了网络流记录，刷新按钮智能检测到页面存在播放中的 Blob 流时，将提供一键重载网页重新捕获引导。
+
+### 6. 自定义地址/网页静默嗅探
+* 支持在顶部输入框粘贴 `m3u8`、`mpd`、`mp4` 直链快速提取；
+* 支持直接输入网页播放页链接，由后台静默标签页自动执行嗅探提取，无需用户手动打开页面。
 
 ---
 
-## 二、 架构设计
+## 🏗️ 架构设计
 
 ```text
-src/
-├── background/
-│   ├── sw.js        # 后台核心：消息路由、offscreen 文档生命周期管理、配置装载
-│   └── sniffer.js   # 智能媒体嗅探器：过滤碎片、HLS 清单解析、码率聚合、Badge 计数
-├── engine/
-│   ├── engine.html  # Chrome Offscreen 文档（宿主容器，绕过 Service Worker 无 DOM/Blob 限制）
-│   ├── engine.js    # 流下载执行引擎：多协程抓取分片、AES-128 解密、拼装 Blob 交付 downloads API
-│   ├── hls.js       # HLS 解析器（Master 多码率、Media 清单、EXT-X-KEY、EXT-X-MAP、EXT-X-BYTERANGE）
-│   └── dash.js      # DASH 解析器（MPD、Representation、SegmentTimeline 时间轴计算）
-├── popup/           # 弹出层：VDH 风格卡片布局、缩略图展示、码率下拉菜单、实时下载进度条
-├── options/         # 设置页：并发数设置、命名规则模板
-├── lib/             # browser-polyfill（跨浏览器 Promise 适配）、url-util
-└── icons/           # 全套透明高清微拟物应用图标（16x16, 32x32, 48x48, 128x128）
+video-harvest/
+├── src/
+│   ├── background/
+│   │   ├── sw.js            # 后台核心：消息路由、Offscreen 生命周期管理、状态池与持久化
+│   │   └── sniffer.js       # 智能媒体嗅探器：过滤去噪、Canvas 抓帧、Master 聚合、Badge 计数
+│   ├── engine/
+│   │   ├── engine.html      # Chrome Offscreen 容器（绕过 MV3 Service Worker 无 DOM/Blob 限制）
+│   │   ├── engine.js        # 下载与合并引擎：多并发分片拉取、AES-128 解密、音视频 Mux 组装
+│   │   ├── hls.js           # 轻量 HLS 解析器（Master、Media、EXT-X-KEY、EXT-X-MAP）
+│   │   └── dash.js          # DASH 解析器（MPD、Representation、SegmentTimeline）
+│   ├── popup/
+│   │   ├── popup.html       # 扩展弹窗界面
+│   │   ├── popup.js         # 交互逻辑、清晰度选择、进度同步、悬停微预览控制器
+│   │   └── popup.css        # 现代暗黑极简工业风设计系统
+│   ├── options/             # 设置中心：并发数调配、文件命名模板
+│   ├── lib/                 # 核心基础库：browser-polyfill, mux.min.js, hls.player.min.js
+│   └── icons/               # 矢量微拟物透明图标集合 (16/32/48/128)
+├── dist/                    # 构建产物（dist/chrome 与 dist/firefox 及打包好的 ZIP）
+├── docs/                    # 官方产品展示与静态站点（支持 GitHub Pages）
+└── build.mjs                # 原生零依赖打包构建脚本
 ```
 
-### 核心分叉机制
-1. **Chrome (Manifest V3)**：
-   - Service Worker 环境下无法创建 Blob URL 和访问 DOM；
-   - 采用 Chrome 官方标准的 **Offscreen Document（离屏文档）** 运行下载合并引擎，通过扩展内部消息与后台通信。
-2. **Firefox (Manifest V2)**：
-   - 采用常驻后台页（Persistent Background Page），直接同步载入解析引擎，直调运行，零消息中转开销。
+### 双浏览器适配规范
+| 运行环境 | 技术方案 | 优势 |
+| :--- | :--- | :--- |
+| **Chrome (MV3)** | Service Worker + Offscreen Document | 符合 Chrome 商店最新审查规范，通过独立的离屏沙盒规避 Service Worker 无法使用 DOM / Blob 的限制 |
+| **Firefox (MV2)** | Persistent Background Page | 原生常驻后台，直接调起引擎，零 IPC 消息中转损耗 |
 
 ---
 
-## 三、 本地构建与加载
+## 🚀 本地构建与安装
 
 ### 1. 编译构建
-本项目零第三方 npm 生产依赖，使用原生 Node.js 构建：
+本项目零第三方 npm 生产运行时依赖，只需本机具备 Node.js（v16+）：
 
 ```bash
 # 执行打包构建
 node build.mjs
 ```
 
-构建完成后产物位于：
-* `dist/chrome`：用于 Chrome / Edge / 360 / Brave 等 Chromium 内核浏览器。
-* `dist/firefox`：用于 Mozilla Firefox。
+构建输出：
+* `dist/chrome/` 及 `dist/chrome.zip`：适配 Chrome / Edge / Brave / 360 等 Chromium 内核浏览器。
+* `dist/firefox/` 及 `dist/firefox.zip`：适配 Mozilla Firefox。
 
 ### 2. 加载到浏览器
 
-* **Google Chrome / Microsoft Edge**：
-  1. 访问 `chrome://extensions`（Edge 访问 `edge://extensions`）；
-  2. 开启右上角 **「开发者模式（Developer Mode）」**；
-  3. 点击 **「加载已解压的扩展程序（Load unpacked）」**；
-  4. 选择本项目目录下的 `dist/chrome` 文件夹即可。
-* **Mozilla Firefox**：
-  1. 访问 `about:debugging#/runtime/this-firefox`；
-  2. 点击 **「临时载入附加组件（Load Temporary Add-on）」**；
-  3. 选择本项目目录下的 `dist/firefox/manifest.json` 文件。
+#### Chromium 系列（Google Chrome / Microsoft Edge 等）
+1. 打开浏览器并访问 `chrome://extensions`（Edge 访问 `edge://extensions`）；
+2. 开启右上角 **「开发者模式（Developer Mode）」**；
+3. 点击 **「加载已解压的扩展程序（Load unpacked）」**；
+4. 选择本项目中的 `dist/chrome` 目录即可载入。
+
+#### Mozilla Firefox
+1. 访问 `about:debugging#/runtime/this-firefox`；
+2. 点击 **「临时载入附加组件（Load Temporary Add-on）」**；
+3. 选择本项目中的 `dist/firefox/manifest.json` 即可载入。
 
 ---
 
-## 四、 常见问题与说明
+## ⚙️ 个性化设置
 
-1. **为什么部分页面播放时嗅探不到视频？**
-   * 部分网站在页面初次加载时并不请求视频流，需在页面中点击播放后，媒体请求触发网络层监听，插件方可捕获。
-2. **下载速度如何调节？**
-   * 点击弹出层底部的「设置」，可以修改并发分片数量（默认 4，可调至 8~16）。注意：过高的并发可能会受到部分站点 CDN 限速策略的限制。
+点击弹出层底部的 **「设置」** 页面，可根据个人网络环境自定义：
+* **分片并发线程数**：支持 1 ~ 16 线程并发拉取切片；
+* **文件重命名模板**：支持 `{title}`（网页标题）、`{host}`（站点域名）、`{date}`（下载日期）等动态占位符。
 
 ---
 
-## 五、 免责声明
+## 📄 免责声明
 
 本扩展仅供合法的个人学习、离线研究及受版权方授权的内容备份使用。请勿将本扩展用于任何侵犯他人知识产权或违反服务条款的商业行为，使用者需自行承担因违规使用产生的法律责任。
+
+---
+
+<p align="center">
+  Made with 🧡 by <strong>ZHANGCHAO</strong>
+</p>
