@@ -8,8 +8,12 @@ if (typeof globalThis.browser === "undefined") {
 }
 
 const EngineAPI = (() => {
-  function report(id, payload) {
-    browser.runtime.sendMessage({ type: "vh-engine-progress", id, ...payload }).catch(() => {});
+  function report(jobOrId, payload) {
+    const id = typeof jobOrId === "object" ? jobOrId?.id : jobOrId;
+    const entryId = (typeof jobOrId === "object" && jobOrId?.entryId)
+      ? jobOrId.entryId
+      : (id ? String(id).replace(/^job-/, "") : null);
+    browser.runtime.sendMessage({ type: "vh-engine-progress", id, entryId, ...payload }).catch(() => {});
   }
 
   async function fetchBuf(url, byteRange, referer) {

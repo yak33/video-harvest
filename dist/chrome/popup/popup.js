@@ -30,6 +30,45 @@ function formatDuration(sec) {
 
 const LABEL = { hls: "HLS", dash: "DASH", video: "MP4", audio: "音频" };
 
+function applyJobProgress(itemEl, state) {
+  if (!itemEl || !state) return;
+  const btn = itemEl.querySelector(".dl");
+  const barWrap = itemEl.querySelector(".progress");
+  const barInner = itemEl.querySelector(".bar");
+  if (!btn || !barWrap || !barInner) return;
+
+  itemEl._downloading = true;
+  btn.disabled = true;
+  barWrap.classList.add("on");
+
+  if (state.phase === "starting" || state.phase === "playlist") {
+    btn.textContent = "准备中...";
+    barInner.style.width = "8%";
+  } else if (state.phase === "segments") {
+    const p = state.percent !== undefined ? state.percent : (state.total > 0 ? Math.round((state.done / state.total) * 100) : 0);
+    btn.textContent = `${p}%`;
+    barInner.style.width = `${p}%`;
+  } else if (state.phase === "transmuxing") {
+    btn.textContent = "封装中...";
+    barInner.style.width = "100%";
+  } else if (state.phase === "done") {
+    btn.textContent = "已开始";
+    barInner.style.width = "100%";
+    setTimeout(() => {
+      itemEl._downloading = false;
+      btn.disabled = false;
+      btn.textContent = "↓ 下载";
+      barWrap.classList.remove("on");
+      barInner.style.width = "0%";
+    }, 2500);
+  } else if (state.phase === "error") {
+    itemEl._downloading = false;
+    btn.disabled = false;
+    btn.textContent = "重试";
+    barWrap.classList.remove("on");
+  }
+}
+
 async function activeTab() {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   return tab;
@@ -38,9 +77,15 @@ async function activeTab() {
 async function render() {
   const tab = await activeTab();
   let media = [];
+  let downloadStates = {};
   try {
     const res = await browser.runtime.sendMessage({ type: "vh-get-media", tabId: tab?.id });
-    if (Array.isArray(res)) media = res;
+    if (Array.isArray(res)) {
+      media = res;
+    } else if (res && typeof res === "object") {
+      media = Array.isArray(res.media) ? res.media : [];
+      downloadStates = res.downloadStates || {};
+    }
   } catch (err) {
     console.warn("Failed to fetch media list:", err);
   }
@@ -174,6 +219,17 @@ async function render() {
 
     refreshSubtitle(select.value || entry.url);
 
+    // 检查并恢复后台活跃任务下载状态
+    const activeState = downloadStates[entry.id];
+    if (activeState) {
+      applyJobProgress(root, activeState);
+    } else if (!root._downloading) {
+      btn.disabled = false;
+      btn.textContent = "↓ 下载";
+      bar.classList.remove("on");
+      bar.querySelector(".bar").style.width = "0%";
+    }
+
     // 新增卡片时绑定事件
     if (isNew) {
       const doLocate = async () => {
@@ -203,9 +259,7 @@ async function render() {
 
       btn.onclick = async () => {
         const curEntry = root._entry || entry;
-        btn.disabled = true;
-        btn.textContent = "处理中";
-        bar.classList.add("on");
+        applyJobProgress(root, { phase: "starting", percent: 5 });
         try {
           const chosenVariantUrl = (curEntry.variants?.length && select.value) ? select.value : curEntry.url;
           const res = await browser.runtime.sendMessage({
@@ -216,10 +270,8 @@ async function render() {
           if (res && res.ok === false) {
             throw new Error(res.error || "下载失败");
           }
-          btn.textContent = "已开始";
         } catch (err) {
-          btn.disabled = false;
-          btn.textContent = "重试";
+          applyJobProgress(root, { phase: "error" });
           sub.textContent = String(err?.message || err);
         }
       };
@@ -236,17 +288,24 @@ browser.runtime.onMessage.addListener((msg) => {
     return;
   }
   if (msg?.type !== "vh-engine-progress" || !msg.relayed) return;
-  if (msg.phase === "segments" && msg.total) {
-    document.querySelectorAll(".item .dl:disabled").forEach((btn) => {
-      const bar = btn.closest(".item").querySelector(".bar");
-      bar.style.width = `${Math.round((msg.done / msg.total) * 100)}%`;
-    });
-  }
-  if (msg.phase === "transmuxing") {
-    document.querySelectorAll(".item .dl:disabled").forEach((btn) => {
-      btn.textContent = "封装中...";
-    });
-  }
+
+  const entryId = msg.entryId || (msg.id ? String(msg.id).replace(/^job-/, "") : null);
+  if (!entryId) return;
+
+  const root = listEl.querySelector(`.item[data-entry-id="${entryId}"]`);
+  if (!root) return;
+
+  const total = msg.total || 0;
+  const done = msg.done || 0;
+  const percent = total > 0 ? Math.round((done / total) * 100) : (msg.phase === "transmuxing" || msg.phase === "done" ? 100 : 0);
+
+  applyJobProgress(root, {
+    phase: msg.phase,
+    done,
+    total,
+    percent,
+    error: msg.error,
+  });
 });
 
 document.getElementById("refresh").addEventListener("click", render);

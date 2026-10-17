@@ -126,6 +126,9 @@ if (downloadsApi?.onDeterminingFilename) {
 
 // --- job execution -------------------------------------------------------
 
+// entryId -> { entryId, phase, done, total, percent, updatedAt }
+const activeDownloadJobs = new Map();
+
 async function startDirectDownload(entry) {
   const cfg = await getSettings();
   const ext = entry.type === "audio"
@@ -134,21 +137,47 @@ async function startDirectDownload(entry) {
   const filename = makeFilename(entry, ext.toLowerCase(), cfg.nameTpl);
   trackDownloadFilename(entry.url, null, filename);
 
-  const downloadId = await browser.downloads.download({
-    url: entry.url,
-    filename,
-    saveAs: true,
+  activeDownloadJobs.set(entry.id, {
+    entryId: entry.id,
+    phase: "starting",
+    done: 0,
+    total: 0,
+    percent: 0,
+    updatedAt: Date.now(),
   });
-  if (downloadId) {
-    trackDownloadFilename(entry.url, downloadId, filename);
+
+  try {
+    const downloadId = await browser.downloads.download({
+      url: entry.url,
+      filename,
+      saveAs: true,
+    });
+    if (downloadId) {
+      trackDownloadFilename(entry.url, downloadId, filename);
+      activeDownloadJobs.set(entry.id, {
+        entryId: entry.id,
+        phase: "done",
+        done: 1,
+        total: 1,
+        percent: 100,
+        updatedAt: Date.now(),
+      });
+      setTimeout(() => activeDownloadJobs.delete(entry.id), 2500);
+    }
+    return { ok: true, mode: "direct" };
+  } catch (err) {
+    activeDownloadJobs.delete(entry.id);
+    throw err;
   }
-  return { ok: true, mode: "direct" };
 }
 
 async function startStreamJob(entry, variantUrl) {
   const cfg = await getSettings();
   const chosenVariant = entry.variants?.find((v) => v.url === variantUrl);
+  const jobId = `job-${entry.id}`;
   const job = {
+    id: jobId,
+    entryId: entry.id,
     kind: entry.type, // hls | dash
     masterUrl: entry.url, // 始终保留完整的 Master 清单地址，用于音视频分离流提取音频轨
     playlistUrl: variantUrl || entry.url,
@@ -158,6 +187,15 @@ async function startStreamJob(entry, variantUrl) {
     filename: makeFilename(entry, "mp4", cfg.nameTpl),
     concurrency: cfg.concurrency || 4,
   };
+
+  activeDownloadJobs.set(entry.id, {
+    entryId: entry.id,
+    phase: "starting",
+    done: 0,
+    total: 0,
+    percent: 0,
+    updatedAt: Date.now(),
+  });
 
   if (typeof EngineAPI !== "undefined") {
     // Firefox: engine co-loaded in this context — call directly.
@@ -176,14 +214,18 @@ browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   switch (msg.type) {
     case "vh-get-media": {
       const list = MediaSniffer.getList(msg.tabId);
-      sendResponse(list);
+      const downloadStates = {};
+      for (const [k, v] of activeDownloadJobs.entries()) {
+        downloadStates[k] = v;
+      }
+      sendResponse({ media: list, downloadStates });
       return false; // synchronous response
     }
 
     case "vh-clear-media": {
       MediaSniffer.clearTab(msg.tabId);
       sendResponse({ ok: true });
-      return false;
+      return false; // synchronous response
     }
 
     case "vh-locate-media": {
@@ -208,7 +250,10 @@ browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       downloadTask
         .then((res) => sendResponse(res))
-        .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
+        .catch((err) => {
+          activeDownloadJobs.delete(entry.id);
+          sendResponse({ ok: false, error: String(err?.message || err) });
+        });
       return true; // keep channel open for async response
     }
 
@@ -229,8 +274,43 @@ browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
 
     case "vh-engine-progress": {
+      const entryId = msg.entryId || (msg.id ? String(msg.id).replace(/^job-/, "") : null);
+      if (entryId) {
+        if (msg.phase === "done") {
+          activeDownloadJobs.set(entryId, {
+            entryId,
+            phase: "done",
+            done: msg.total || 1,
+            total: msg.total || 1,
+            percent: 100,
+            updatedAt: Date.now(),
+          });
+          setTimeout(() => activeDownloadJobs.delete(entryId), 3000);
+        } else if (msg.phase === "error") {
+          activeDownloadJobs.set(entryId, {
+            entryId,
+            phase: "error",
+            error: msg.error,
+            percent: 0,
+            updatedAt: Date.now(),
+          });
+          setTimeout(() => activeDownloadJobs.delete(entryId), 5000);
+        } else {
+          const total = msg.total || 0;
+          const done = msg.done || 0;
+          const percent = total > 0 ? Math.round((done / total) * 100) : (msg.phase === "transmuxing" ? 100 : 0);
+          activeDownloadJobs.set(entryId, {
+            entryId,
+            phase: msg.phase,
+            done,
+            total,
+            percent,
+            updatedAt: Date.now(),
+          });
+        }
+      }
       // relay engine progress to any open popup
-      browser.runtime.sendMessage({ ...msg, relayed: true }).catch(() => {});
+      browser.runtime.sendMessage({ ...msg, entryId, relayed: true }).catch(() => {});
       return false;
     }
 
