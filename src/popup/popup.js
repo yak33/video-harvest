@@ -447,9 +447,47 @@ browser.runtime.onMessage.addListener((msg) => {
   });
 });
 
-document.getElementById("refresh").addEventListener("click", () => {
+const refreshBtn = document.getElementById("refresh");
+refreshBtn?.addEventListener("click", async () => {
   if (currentActiveStop) currentActiveStop();
-  render();
+  refreshBtn.disabled = true;
+  refreshBtn.innerHTML = `<span class="spinning">↻</span> 检测中...`;
+
+  try {
+    const tab = await activeTab();
+    if (tab?.id) {
+      // 1. 发送主动重新扫描请求：遍历当前网页 DOM 直链并探测流媒体
+      const scanRes = await browser.runtime.sendMessage({
+        type: "vh-rescan-media",
+        tabId: tab.id,
+      });
+
+      // 2. 重新渲染媒体列表
+      await render();
+
+      // 3. 针对流媒体被清空后的贴心引导：
+      // 若列表仍为空但页面有 blob 播放流，提示用户是否刷新网页重新捕获流
+      const currentItems = listEl.querySelectorAll(".item");
+      if (currentItems.length === 0 && scanRes?.hasBlobMedia) {
+        const wantReload = confirm(
+          "当前页面正在播放视频流，但网络请求记录此前已被清空。\n\n是否刷新当前网页以重新捕获完整视频流？"
+        );
+        if (wantReload) {
+          await browser.tabs.reload(tab.id);
+          window.close();
+          return;
+        }
+      }
+    } else {
+      await render();
+    }
+  } catch (err) {
+    console.warn("Rescan error:", err);
+    await render();
+  } finally {
+    refreshBtn.disabled = false;
+    refreshBtn.textContent = "↻ 刷新";
+  }
 });
 
 document.getElementById("clear")?.addEventListener("click", async () => {

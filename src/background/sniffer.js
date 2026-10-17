@@ -827,7 +827,135 @@ const MediaSniffer = (() => {
     }
   }
 
-  return { start, getList, clearTab, classify, parseCustomUrl, locateMediaInTab };
+  /**
+   * 主动扫描当前标签页 DOM，提取媒体直链并检测是否存在流媒体
+   * 响应弹窗面板左下角【刷新】按钮的主动重新检测
+   * @author ZHANGCHAO 2026/10/17
+   */
+  async function rescanTab(tabId) {
+    if (tabId < 0) return { ok: false, error: "invalid_tab_id" };
+    const api = typeof browser !== "undefined" ? browser : chrome;
+    const scriptingApi = chrome.scripting || (typeof browser !== "undefined" && browser.scripting);
+
+    let tab = null;
+    try {
+      tab = await api.tabs.get(tabId);
+    } catch {}
+
+    const map = ensureTab(tabId);
+    const initialCount = map.size;
+
+    const scanResult = {
+      directMediaUrls: [],
+      hasBlobMedia: false,
+      videoCount: 0,
+    };
+
+    if (scriptingApi) {
+      try {
+        const frameResults = await scriptingApi.executeScript({
+          target: { tabId, allFrames: true },
+          func: () => {
+            const mediaList = [];
+            let hasBlob = false;
+            const videos = Array.from(document.querySelectorAll("video, audio"));
+
+            function checkUrl(u, el) {
+              if (!u || typeof u !== "string") return;
+              const trimmed = u.trim();
+              if (trimmed.startsWith("blob:")) {
+                hasBlob = true;
+                return;
+              }
+              if (/^https?:\/\//i.test(trimmed)) {
+                const poster = el?.poster || "";
+                const dur = el?.duration > 0 ? Math.round(el.duration) : 0;
+                mediaList.push({
+                  url: trimmed,
+                  poster,
+                  duration: dur,
+                  tagName: el?.tagName?.toLowerCase() || "video",
+                });
+              }
+            }
+
+            for (const el of videos) {
+              checkUrl(el.currentSrc || el.src, el);
+              el.querySelectorAll("source").forEach((s) => checkUrl(s.src, el));
+            }
+
+            return { mediaList, hasBlob, videoCount: videos.length };
+          },
+        });
+
+        if (Array.isArray(frameResults)) {
+          for (const fr of frameResults) {
+            const data = fr.result;
+            if (!data) continue;
+            if (data.hasBlob) scanResult.hasBlobMedia = true;
+            scanResult.videoCount += data.videoCount || 0;
+            if (Array.isArray(data.mediaList)) {
+              for (const m of data.mediaList) {
+                scanResult.directMediaUrls.push(m);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[sniffer] rescan executeScript error:", err);
+      }
+    }
+
+    // 将扫描到的直链注入到 tabs 集合中
+    for (const item of scanResult.directMediaUrls) {
+      const norm = normalizeUrl(item.url);
+      let alreadyExists = false;
+      for (const existing of map.values()) {
+        if (normalizeUrl(existing.url) === norm) {
+          alreadyExists = true;
+          break;
+        }
+      }
+      if (alreadyExists) continue;
+
+      const type = item.tagName === "audio" ? "audio" : "video";
+      const entryId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const entry = {
+        id: entryId,
+        url: item.url,
+        type,
+        contentType: type === "video" ? "video/mp4" : "audio/mpeg",
+        size: 0,
+        estimatedSize: 0,
+        duration: item.duration || 0,
+        thumbnail: item.poster || "",
+        referer: tab?.url || "",
+        origin: tab?.url ? new URL(tab.url).origin : "",
+        pageTitle: tab?.title || "",
+        favIconUrl: tab?.favIconUrl || "",
+        variants: [],
+        foundAt: Date.now(),
+      };
+      map.set(entryId, entry);
+      enrichWithTabMedia(tabId, entry).finally(() => {
+        updateBadge(tabId);
+        notifyPopup();
+      });
+    }
+
+    updateBadge(tabId);
+    notifyPopup(true);
+
+    return {
+      ok: true,
+      oldCount: initialCount,
+      newCount: map.size,
+      hasBlobMedia: scanResult.hasBlobMedia,
+      videoCount: scanResult.videoCount,
+    };
+  }
+
+  return { start, getList, clearTab, classify, parseCustomUrl, locateMediaInTab, rescanTab };
 })();
 
 if (typeof module !== "undefined") module.exports = MediaSniffer;
