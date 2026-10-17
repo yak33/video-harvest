@@ -74,6 +74,141 @@ async function activeTab() {
   return tab;
 }
 
+// ==========================================
+// 缩略图悬停视频动态微预览控制器
+// 支持 MP4 直链与 HLS (m3u8) 快速切片微播，离开即销毁
+// @author ZHANGCHAO 2026/10/17
+// ==========================================
+let currentActiveStop = null;
+
+function setupHoverPreview(root) {
+  const thumbWrap = root.querySelector(".thumb-wrap");
+  const video = thumbWrap?.querySelector(".preview-video");
+  if (!thumbWrap || !video) return;
+
+  let hoverTimer = null;
+  let hlsInstance = null;
+  let playPromise = null;
+  let isHovering = false;
+
+  function stopPreview() {
+    isHovering = false;
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      hoverTimer = null;
+    }
+    video.classList.remove("active");
+    video.onplaying = null;
+    video.onerror = null;
+
+    if (hlsInstance) {
+      try {
+        hlsInstance.destroy();
+      } catch {}
+      hlsInstance = null;
+    }
+
+    if (playPromise !== null) {
+      playPromise
+        .then(() => {
+          video.pause();
+          video.removeAttribute("src");
+          video.load();
+        })
+        .catch(() => {
+          video.pause();
+          video.removeAttribute("src");
+          video.load();
+        })
+        .finally(() => {
+          playPromise = null;
+        });
+    } else {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    }
+
+    if (currentActiveStop === stopPreview) {
+      currentActiveStop = null;
+    }
+  }
+
+  function startPreview() {
+    if (!isHovering) return;
+    if (currentActiveStop && currentActiveStop !== stopPreview) {
+      currentActiveStop();
+    }
+    currentActiveStop = stopPreview;
+
+    const entry = root._entry;
+    if (!entry) return;
+
+    // 清晰度优化：微预览优先选用 360p~720p 适中码率的 variant，确保毫秒级起播且节省带宽
+    let playUrl = entry.url;
+    if (entry.variants && entry.variants.length > 0) {
+      const sorted = [...entry.variants].sort((a, b) => (a.bandwidth || 0) - (b.bandwidth || 0));
+      const fastVariant = sorted.find((v) => (v.height || 0) >= 360) || sorted[0];
+      if (fastVariant?.url) playUrl = fastVariant.url;
+    }
+
+    if (!playUrl) return;
+
+    video.onplaying = () => {
+      if (isHovering) {
+        video.classList.add("active");
+      } else {
+        stopPreview();
+      }
+    };
+    video.onerror = () => {
+      stopPreview();
+    };
+
+    const isHls = entry.type === "hls" || playUrl.includes(".m3u8");
+
+    if (isHls && window.Hls && window.Hls.isSupported()) {
+      try {
+        hlsInstance = new window.Hls({
+          maxBufferLength: 4,      // 预览仅缓冲 4 秒切片
+          maxMaxBufferLength: 8,
+          enableWorker: false,     // 扩展 popup 中关闭 Worker，避免触发 CSP 拦截
+          lowLatencyMode: true,
+        });
+        hlsInstance.loadSource(playUrl);
+        hlsInstance.attachMedia(video);
+        hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, () => {
+          if (!isHovering) {
+            stopPreview();
+            return;
+          }
+          playPromise = video.play();
+        });
+        hlsInstance.on(window.Hls.Events.ERROR, (event, data) => {
+          if (data && data.fatal) stopPreview();
+        });
+      } catch (err) {
+        console.warn("HLS hover preview init failed:", err);
+        stopPreview();
+      }
+    } else {
+      // 原生直链 MP4 / WebM 或原生支持 HLS (如 Safari)
+      video.src = playUrl;
+      video.currentTime = 0;
+      playPromise = video.play();
+    }
+  }
+
+  thumbWrap.addEventListener("mouseenter", () => {
+    isHovering = true;
+    hoverTimer = setTimeout(startPreview, 160); // 160ms 防抖，过滤鼠标非刻意掠过
+  });
+
+  thumbWrap.addEventListener("mouseleave", () => {
+    stopPreview();
+  });
+}
+
 async function render() {
   const tab = await activeTab();
   let media = [];
@@ -232,6 +367,8 @@ async function render() {
 
     // 新增卡片时绑定事件
     if (isNew) {
+      setupHoverPreview(root);
+
       const doLocate = async () => {
         const curEntry = root._entry || entry;
         try {
@@ -246,8 +383,10 @@ async function render() {
         } catch {}
       };
 
+      const thumbWrap = root.querySelector(".thumb-wrap");
       if (locateBtn) locateBtn.onclick = doLocate;
-      thumb.onclick = doLocate;
+      if (thumbWrap) thumbWrap.onclick = doLocate;
+      else thumb.onclick = doLocate;
       name.onclick = (e) => {
         const curEntry = root._entry || entry;
         if ((e.ctrlKey || e.metaKey) && curEntry.pageUrl) {
@@ -308,14 +447,22 @@ browser.runtime.onMessage.addListener((msg) => {
   });
 });
 
-document.getElementById("refresh").addEventListener("click", render);
+document.getElementById("refresh").addEventListener("click", () => {
+  if (currentActiveStop) currentActiveStop();
+  render();
+});
 
 document.getElementById("clear")?.addEventListener("click", async () => {
+  if (currentActiveStop) currentActiveStop();
   const tab = await activeTab();
   if (tab?.id) {
     await browser.runtime.sendMessage({ type: "vh-clear-media", tabId: tab.id });
     render();
   }
+});
+
+window.addEventListener("unload", () => {
+  if (currentActiveStop) currentActiveStop();
 });
 
 // --- 自定义视频地址/网页地址输入解析 ---

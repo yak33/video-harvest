@@ -51,10 +51,24 @@ header h1 { font-size: 14px; font-weight: 600; flex: 1; letter-spacing: 0.3px; }
   border-radius: 6px; overflow: hidden;
   background: #1f1f23; display: flex; align-items: center; justify-content: center;
   cursor: pointer;
+  user-select: none;
 }
-.thumb-wrap:hover { opacity: 0.9; }
+.thumb-wrap:hover { opacity: 0.95; }
 .thumb {
   width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.preview-video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
+  background: #000;
+  z-index: 1;
+}
+.preview-video.active {
+  opacity: 1;
 }
 .thumb-wrap .duration {
   position: absolute; right: 4px; bottom: 4px;
@@ -62,6 +76,8 @@ header h1 { font-size: 14px; font-weight: 600; flex: 1; letter-spacing: 0.3px; }
   background: rgba(0, 0, 0, 0.75); color: #f4f4f5;
   font-size: 10px; font-weight: 600; font-family: monospace;
   display: none;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .content { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; }

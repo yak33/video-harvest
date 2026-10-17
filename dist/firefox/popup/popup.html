@@ -24,8 +24,9 @@
 </footer>
 <template id="item-tpl">
   <div class="item">
-    <div class="thumb-wrap" title="点击在当前网页中高亮定位此视频">
+    <div class="thumb-wrap" title="点击在当前网页中高亮定位此视频（悬停可预览播放）">
       <img class="thumb" src="" alt="">
+      <video class="preview-video" muted playsinline loop></video>
       <span class="duration"></span>
     </div>
     <div class="content">
@@ -44,6 +45,7 @@
   </div>
 </template>
 <script src="../lib/browser-polyfill.js"></script>
+<script src="../lib/hls.player.min.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>
