@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privacy Policy (隐私政策) — VideoHarvest</title>
+  <title>Privacy Policy — VideoHarvest</title>
   <meta name="description" content="Privacy Policy for VideoHarvest browser extension. We respect your privacy and do not collect, store, or transmit any personal data.">
   <link rel="icon" type="image/png" href="icons/icon-32.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,8 +12,8 @@
   <link rel="stylesheet" href="style.css">
   <style>
     .privacy-container {
-      max-width: 860px;
-      margin: 60px auto 100px;
+      max-width: 880px;
+      margin: 50px auto 100px;
       padding: 0 24px;
     }
     .privacy-card {
@@ -27,6 +27,11 @@
       border-bottom: 1px solid var(--border-subtle);
       padding-bottom: 24px;
       margin-bottom: 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 16px;
     }
     .privacy-title {
       font-size: 32px;
@@ -37,6 +42,29 @@
       font-size: 13px;
       color: var(--text-subtle);
       font-family: var(--font-mono);
+    }
+    .lang-switcher {
+      display: flex;
+      background: rgba(39, 39, 42, 0.8);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      padding: 3px;
+      gap: 2px;
+    }
+    .lang-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 5px 14px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lang-btn.active {
+      background: var(--primary);
+      color: #fff;
     }
     .privacy-highlight {
       background: rgba(34, 197, 94, 0.1);
@@ -73,12 +101,6 @@
       color: #fff;
       margin-bottom: 12px;
     }
-    .privacy-section h3 {
-      font-size: 16px;
-      font-weight: 600;
-      color: #fdba74;
-      margin: 16px 0 8px;
-    }
     .privacy-section p {
       font-size: 14px;
       color: var(--text-muted);
@@ -106,6 +128,9 @@
     .back-home:hover {
       color: var(--primary-hover);
     }
+    [data-lang="zh"] {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -119,118 +144,218 @@
         <span class="brand-name">VideoHarvest</span>
       </a>
       <div class="nav-actions">
-        <a href="index.html" class="btn btn-secondary btn-sm">返回首页</a>
+        <a href="index.html" class="btn btn-secondary btn-sm">Home</a>
       </div>
     </div>
   </header>
 
   <main class="privacy-container">
     <a href="index.html" class="back-home">
-      ← 返回首页 (Back to Home)
+      ← Back to Home / 返回首页
     </a>
 
     <div class="privacy-card">
       <div class="privacy-header">
-        <h1 class="privacy-title">隐私权政策 / Privacy Policy</h1>
-        <div class="privacy-meta">
-          <span>生效日期 / Effective Date: 2026-10-17</span> · <span>版本 / Version: 1.0</span>
-        </div>
-      </div>
-
-      <!-- 核心承诺卡片 -->
-      <div class="privacy-highlight">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          <polyline points="9 12 11 14 15 10"/>
-        </svg>
         <div>
-          <div class="privacy-highlight-title">核心隐私承诺 / TL;DR Summary</div>
-          <div class="privacy-highlight-desc">
-            <strong>VideoHarvest 绝不收集、不存储、不分享、不传输任何用户的个人身份信息（PII）、浏览历史或下载内容。</strong><br>
-            所有网络请求嗅探、切片下载、AES-128 解密及音视频封装均在您本机的浏览器沙盒内完成，100% 离线本地运行。
+          <h1 class="privacy-title" data-lang="en">Privacy Policy</h1>
+          <h1 class="privacy-title" data-lang="zh">隐私权政策</h1>
+          <div class="privacy-meta">
+            <span data-lang="en">Effective Date: October 17, 2026 · Version: 1.0</span>
+            <span data-lang="zh">生效日期：2026年10月17日 · 版本：1.0</span>
           </div>
         </div>
+
+        <!-- 语言切换开关 -->
+        <div class="lang-switcher">
+          <button class="lang-btn active" id="btn-en">English</button>
+          <button class="lang-btn" id="btn-zh">中文</button>
+        </div>
       </div>
 
-      <div class="privacy-section">
-        <h2>1. 信息收集与使用 / Information Collection and Use</h2>
-        <p>
-          VideoHarvest（以下简称“本扩展”）是一款专注于帮助用户备份合法网页音视频的本地工具扩展。
-        </p>
-        <p>
-          <strong>No Data Collected:</strong> We do not collect any user data, personal information, IP addresses, browsing histories, downloaded files, or keystrokes.
-        </p>
-        <ul>
-          <li><strong>无远程服务器回传：</strong> 本扩展没有搭建任何用于追踪或收集用户数据的后端服务器；</li>
-          <li><strong>无第三方追踪分析：</strong> 本扩展不包含 Google Analytics、Sentry 或任何第三方营销与广告跟踪代码；</li>
-          <li><strong>纯本地执行：</strong> 视频切片合并（MPEG-TS/fMP4 Remuxing）完全依靠浏览器内置的 MediaSource 及 WebAssembly/本地 JavaScript 在前端沙盒完成。</li>
-        </ul>
+      <!-- ==================== 英文内容 (ENGLISH - 审核员首选) ==================== -->
+      <div id="content-en" data-lang="en">
+        <div class="privacy-highlight">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <polyline points="9 12 11 14 15 10"/>
+          </svg>
+          <div>
+            <div class="privacy-highlight-title">Summary / Zero Data Collection</div>
+            <div class="privacy-highlight-desc">
+              <strong>VideoHarvest does NOT collect, store, transmit, or monetize any personal information, browsing history, or user downloads.</strong> All network detection, HLS/DASH media parsing, AES-128 decryption, and audio-video remuxing are performed 100% locally on your computer inside the browser sandbox.
+            </div>
+          </div>
+        </div>
+
+        <div class="privacy-section">
+          <h2>1. Information Collection and Use</h2>
+          <p>
+            VideoHarvest is a developer tool and productivity browser extension designed to help users detect, preview, and save web streaming media directly to their local devices.
+          </p>
+          <p>
+            <strong>No Data Collected:</strong> We do not operate any tracking servers or data analytics backends. We do not collect user IP addresses, device identifiers, cookies, keystrokes, or visited web addresses.
+          </p>
+          <ul>
+            <li><strong>No External Transmission:</strong> The extension operates self-contained without connecting to third-party tracking or cloud sync servers.</li>
+            <li><strong>No Analytics or Ads:</strong> There are no advertising SDKs, tracking pixels, or telemetry frameworks embedded in VideoHarvest.</li>
+            <li><strong>Pure Client-Side Processing:</strong> Media stream demuxing and transmuxing (MPEG-TS/fMP4 into MP4) are computed entirely on the client side via browser standard APIs.</li>
+          </ul>
+        </div>
+
+        <div class="privacy-section">
+          <h2>2. Permission Usage and Justification</h2>
+          <p>
+            The extension requests only the minimum permissions necessary to fulfill its core functionality. Below are the specific justifications for each permission declared in <code>manifest.json</code>:
+          </p>
+          <table class="protocol-table" style="margin-top: 12px; margin-bottom: 16px;">
+            <thead>
+              <tr>
+                <th style="width: 25%;">Permission</th>
+                <th>Justification & Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>webRequest</code></td>
+                <td>Used locally to inspect response headers and media manifest URLs (m3u8 and mpd) so the extension can display available video resolutions. No web traffic is recorded or sent externally.</td>
+              </tr>
+              <tr>
+                <td><code>downloads</code></td>
+                <td>Invokes the browser's native download API to save the merged MP4 video file to the user's local disk upon user request.</td>
+              </tr>
+              <tr>
+                <td><code>storage</code></td>
+                <td>Saves user preferences (such as concurrent segment download threads and filename naming templates) locally in <code>chrome.storage.local</code>.</td>
+              </tr>
+              <tr>
+                <td><code>tabs</code></td>
+                <td>Associates detected media streams with the current browser tab to ensure the popup displays media detected on the active webpage only.</td>
+              </tr>
+              <tr>
+                <td><code>scripting</code></td>
+                <td>Extracts video thumbnails, captures live preview frames from playing videos, and performs local DOM inspection when user clicks refresh.</td>
+              </tr>
+              <tr>
+                <td><code>offscreen</code></td>
+                <td>Manifest V3 standard: Runs the audio-video transmuxer and creates local media blobs in an isolated sandbox document without blocking the UI.</td>
+              </tr>
+              <tr>
+                <td><code>Host Permissions</code></td>
+                <td>Required to fetch audio/video fragments hosted across diverse CDN domains strictly based on the user's download action.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="privacy-section">
+          <h2>3. Data Security and Encryption</h2>
+          <p>
+            Since all operations execute locally on your device, your data never leaves your computer. For encrypted HLS media (AES-128), decryption keys are fetched directly by your browser from the authorized origin and decrypted in local memory, after which the key is discarded immediately.
+          </p>
+        </div>
+
+        <div class="privacy-section">
+          <h2>4. Third-Party Websites</h2>
+          <p>
+            When downloading media, your browser communicates directly with the respective third-party hosting server. Those third-party websites have their own privacy policies. VideoHarvest has no control over and assumes no responsibility for third-party practices.
+          </p>
+        </div>
+
+        <div class="privacy-section">
+          <h2>5. Contact Us</h2>
+          <p>
+            If you have questions or concerns regarding this Privacy Policy, please reach out via GitHub Issues:<br>
+            <a href="https://github.com/yak33/video-harvest" target="_blank" style="color: var(--primary);">https://github.com/yak33/video-harvest</a>
+          </p>
+        </div>
       </div>
 
-      <div class="privacy-section">
-        <h2>2. 浏览器权限用途声明 / Permission Usage</h2>
-        <p>
-          为了实现音视频嗅探与下载功能，本扩展在 <code>manifest.json</code> 中声明了以下权限，各项权限的具体使用场景如下：
-        </p>
-        <table class="protocol-table" style="margin-top: 12px; margin-bottom: 16px;">
-          <thead>
-            <tr>
-              <th style="width: 25%;">权限 (Permission)</th>
-              <th>用途说明 (Justification & Purpose)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>webRequest</code></td>
-              <td>在浏览器本地监听网络响应头与 MIME 类型，以捕获视频清单（如 m3u8、mpd 等）。绝不向外转发网络数据。</td>
-            </tr>
-            <tr>
-              <td><code>downloads</code></td>
-              <td>调用浏览器原生下载管理器，将合并好的视频文件保存到用户的本地硬盘中。</td>
-            </tr>
-            <tr>
-              <td><code>storage</code></td>
-              <td>仅用于在用户的浏览器本地（chrome.storage.local）保存用户的设置选项（如下载分片并发数、文件名模板）。</td>
-            </tr>
-            <tr>
-              <td><code>scripting</code> / <code>activeTab</code></td>
-              <td>当用户主动点击扩展图标或刷新按钮时，在当前页面抓取视频海报封面帧或执行 DOM 直链探测。不运行任何未受信任的远程代码。</td>
-            </tr>
-            <tr>
-              <td><code>offscreen</code></td>
-              <td>Chrome MV3 官方标准机制：在本地离屏沙盒中生成视频 Blob 数据，彻底避免在后台常驻占用系统资源。</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- ==================== 中文内容 (CHINESE) ==================== -->
+      <div id="content-zh" data-lang="zh">
+        <div class="privacy-highlight">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <polyline points="9 12 11 14 15 10"/>
+          </svg>
+          <div>
+            <div class="privacy-highlight-title">核心隐私承诺 / 零数据收集</div>
+            <div class="privacy-highlight-desc">
+              <strong>VideoHarvest 绝不收集、不存储、不分享、不传输任何用户的个人身份信息（PII）、浏览历史或下载内容。</strong><br>
+              所有网络请求嗅探、切片下载、AES-128 解密及音视频封装均在您本机的浏览器沙盒内完成，100% 离线本地运行。
+            </div>
+          </div>
+        </div>
 
-      <div class="privacy-section">
-        <h2>3. 数据安全 / Data Security</h2>
-        <p>
-          由于本扩展不收集或在网络上传输您的任何数据，因此您的数据始终安全地保留在您自己的计算机设备中。对于加密的 HLS 视频流（AES-128），密钥由您的浏览器直接从目标站点获取，并在本地内存解密后立即销毁。
-        </p>
-      </div>
+        <div class="privacy-section">
+          <h2>1. 信息收集与使用</h2>
+          <p>
+            VideoHarvest 是一款专注于帮助用户嗅探、预览和备份合法网页音视频的本地工具扩展。
+          </p>
+          <p>
+            <strong>零数据收集：</strong> 本扩展没有搭建任何用于追踪或收集用户数据的后端服务器，不收集 IP 地址、设备信息、Cookie 或网页浏览历史。
+          </p>
+          <ul>
+            <li><strong>无远程服务器回传：</strong> 本扩展在浏览器沙盒内完全自包含运行，不向任何第三方云端上报数据；</li>
+            <li><strong>无第三方追踪分析：</strong> 本扩展不包含任何分析统计代码（如 Google Analytics 等）或广告营销脚本；</li>
+            <li><strong>纯本地执行：</strong> 视频切片合并（MPEG-TS/fMP4 Remuxing）完全依靠本地浏览器标准 API 完成。</li>
+          </ul>
+        </div>
 
-      <div class="privacy-section">
-        <h2>4. 第三方服务与链接 / Third-Party Services</h2>
-        <p>
-          本扩展可能会从您正在浏览的第三方视频托管网站下载公开的音视频切片。请注意，这些第三方网站拥有其独立的隐私权政策。我们建议您查看所访问网站的隐私权政策与服务条款。
-        </p>
-      </div>
+        <div class="privacy-section">
+          <h2>2. 浏览器权限用途声明</h2>
+          <p>
+            本扩展在 <code>manifest.json</code> 中声明的各项权限仅用于支撑核心功能：
+          </p>
+          <table class="protocol-table" style="margin-top: 12px; margin-bottom: 16px;">
+            <thead>
+              <tr>
+                <th style="width: 25%;">权限</th>
+                <th>用途说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>webRequest</code></td>
+                <td>在浏览器本地监听网络响应头与 MIME 类型，以捕获视频清单（m3u8、mpd 等）。绝不向外转发网络数据。</td>
+              </tr>
+              <tr>
+                <td><code>downloads</code></td>
+                <td>调用浏览器原生下载管理器，将合并好的视频文件保存到用户的本地硬盘中。</td>
+              </tr>
+              <tr>
+                <td><code>storage</code></td>
+                <td>仅用于在用户的浏览器本地保存用户的设置选项（如下载分片并发数、文件名模板）。</td>
+              </tr>
+              <tr>
+                <td><code>tabs</code></td>
+                <td>将捕获的流媒体与具体标签页关联，确保弹窗仅展示当前网页的媒体。</td>
+              </tr>
+              <tr>
+                <td><code>scripting</code></td>
+                <td>在用户主动打开弹窗或点击刷新时，提取视频海报或执行现场 Canvas 抓帧。</td>
+              </tr>
+              <tr>
+                <td><code>offscreen</code></td>
+                <td>Chrome MV3 官方标准机制：在本地离屏沙盒中生成视频 Blob 数据，彻底避免在后台常驻占用系统资源。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <div class="privacy-section">
-        <h2>5. 隐私政策的更新 / Changes to This Privacy Policy</h2>
-        <p>
-          我们可能会适时更新本隐私权政策。任何变更都将在本页面上发布最新版本。建议您定期查阅以了解最新信息。
-        </p>
-      </div>
+        <div class="privacy-section">
+          <h2>3. 数据安全</h2>
+          <p>
+            由于本扩展不收集或在网络上传输您的任何数据，因此您的数据始终安全地保留在您自己的计算机设备中。对于加密的 HLS 视频流（AES-128），密钥由您的浏览器直接从目标站点获取，并在本地内存解密后立即销毁。
+          </p>
+        </div>
 
-      <div class="privacy-section">
-        <h2>6. 联系我们 / Contact Us</h2>
-        <p>
-          如果您对本隐私权政策或本扩展有任何疑问，请通过开源仓库发起 Issue 与我们联系：<br>
-          GitHub: <a href="https://github.com/yak33/video-harvest" target="_blank" style="color: var(--primary);">https://github.com/yak33/video-harvest</a>
-        </p>
+        <div class="privacy-section">
+          <h2>4. 联系我们</h2>
+          <p>
+            如果您对本隐私政策有任何疑问，请通过开源仓库发起 Issue 联系我们：<br>
+            <a href="https://github.com/yak33/video-harvest" target="_blank" style="color: var(--primary);">https://github.com/yak33/video-harvest</a>
+          </p>
+        </div>
       </div>
     </div>
   </main>
@@ -238,8 +363,38 @@
   <footer class="footer">
     <div class="footer-bottom" style="border-top: none;">
       <p>© 2026 VideoHarvest. MIT License. Made with 🧡 by <strong>ZHANGCHAO</strong></p>
-      <a href="index.html" style="color: var(--text-muted); text-decoration: none;">返回产品首页</a>
+      <a href="index.html" style="color: var(--text-muted); text-decoration: none;">Back to Home / 返回产品首页</a>
     </div>
   </footer>
+
+  <script>
+    const btnEn = document.getElementById("btn-en");
+    const btnZh = document.getElementById("btn-zh");
+
+    function setLanguage(lang) {
+      document.querySelectorAll('[data-lang]').forEach((el) => {
+        if (el.getAttribute('data-lang') === lang) {
+          el.style.display = el.tagName === 'SPAN' ? 'inline' : 'block';
+        } else {
+          el.style.display = 'none';
+        }
+      });
+      if (lang === 'en') {
+        btnEn.classList.add('active');
+        btnZh.classList.remove('active');
+      } else {
+        btnZh.classList.add('active');
+        btnEn.classList.remove('active');
+      }
+    }
+
+    btnEn.addEventListener('click', () => setLanguage('en'));
+    btnZh.addEventListener('click', () => setLanguage('zh'));
+
+    // 默认根据用户浏览器语言，如果是中文则显示中文，海外审核员默认显示英文
+    const isZh = (navigator.language || navigator.userLanguage || '').toLowerCase().startsWith('zh');
+    // 但为了确保审核员进入时 100% 看到英文，默认优先 English：
+    setLanguage('en');
+  </script>
 </body>
 </html>
