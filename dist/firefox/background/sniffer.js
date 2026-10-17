@@ -193,41 +193,109 @@ const MediaSniffer = (() => {
           let poster = "";
           let title = "";
           let tweetUrl = "";
-
-          // --- A. Twitter (X.com) 深度识别：按 mediaId 关联推文与海报 ---
-          // mediaId 是条目 URL 与推文卡片之间唯一的可靠纽带。匹配失败时绝不能
-          // 拿主推文冒充，否则推荐流视频全部显示成当前推文的标题和封面（点 A 下 B）。
-          // 匹配途径：未播放的封面 img[src] + 已播放的 video[poster]，两者都携带 mediaId
-          // @author ZHANGCHAO 2026/10/17
           let mediaIdMatched = false;
-          if (mediaId) {
-            const img = document.querySelector(`img[src*="${mediaId}"]`);
-            const videoEl = img ? null : document.querySelector(`video[poster*="${mediaId}"]`);
-            const mediaEl = img || videoEl;
-            if (mediaEl) {
-              mediaIdMatched = true;
-              poster = (img ? img.src : videoEl.poster) || "";
-              const tweet = mediaEl.closest('article[data-testid="tweet"]');
-              if (tweet) {
-                const userEl = tweet.querySelector('div[data-testid="User-Name"]');
-                const textEl = tweet.querySelector('div[data-testid="tweetText"]');
-                const linkEl = tweet.querySelector('a[href*="/status/"]');
-                const user = userEl ? userEl.textContent.replace(/\s+/g, " ").trim() : "";
-                const text = textEl ? textEl.textContent.trim() : "";
-                if (linkEl?.href) tweetUrl = linkEl.href;
-                if (user || text) {
-                  title = text ? (user ? `${user}: ${text.slice(0, 45)}` : text.slice(0, 50)) : user;
-                }
-              }
+
+          // 从 video 元素现场抓取真实画面帧（同源/blob 视频 100% 可用且绝对真实）
+          function captureFrame(v) {
+            try {
+              if (!v || v.readyState < 2 || !v.videoWidth || !v.videoHeight) return "";
+              const cvs = document.createElement("canvas");
+              cvs.width = 160;
+              cvs.height = Math.round((160 * v.videoHeight) / v.videoWidth) || 90;
+              const ctx = cvs.getContext("2d");
+              ctx.drawImage(v, 0, 0, cvs.width, cvs.height);
+              return cvs.toDataURL("image/jpeg", 0.75);
+            } catch {
+              return "";
             }
           }
 
-          // 主推文兜底仅适用于从 URL 中提取不到 mediaId 的 X 条目（如 broadcasts 等特殊流）；
-          // 有 mediaId 但未匹配到卡片的条目保持无标题，由弹窗显示 "X 视频 (id尾号)"
-          if (!mediaId && !title && (location.hostname.includes("x.com") || location.hostname.includes("twitter.com"))) {
-            if (location.pathname.includes("/status/")) {
+          // 提取推文中的首张非头像大图或媒体封面海报
+          function getTweetPoster(tweetEl) {
+            if (!tweetEl) return "";
+            // 1. 媒体容器专属图片
+            const mImgs = Array.from(tweetEl.querySelectorAll('div[data-testid="videoComponent"] img, div[data-testid="videoPlayer"] img, div[data-testid="tweetPhoto"] img'));
+            for (const im of mImgs) {
+              if (im.src && !im.src.startsWith("data:")) return im.src;
+            }
+            // 2. 排除用户头像后的所有大图
+            const allImgs = Array.from(tweetEl.querySelectorAll("img")).filter((im) => {
+              if (im.closest('[data-testid="Tweet-User-Avatar"]')) return false;
+              return (im.src && im.src.includes("pbs.twimg.com")) || im.naturalWidth > 60 || im.width > 60;
+            });
+            if (allImgs.length > 0 && allImgs[0].src) return allImgs[0].src;
+
+            // 3. 带有 background-image 的容器
+            const bgDivs = Array.from(tweetEl.querySelectorAll('div[style*="background-image"]'));
+            for (const d of bgDivs) {
+              const m = (d.style.backgroundImage || "").match(/url\(["']?([^"']+)["']?\)/);
+              if (m && m[1] && !m[1].includes("profile_images")) return m[1];
+            }
+            return "";
+          }
+
+          // --- A. Twitter (X.com) 深度识别 ---
+          if (location.hostname.includes("x.com") || location.hostname.includes("twitter.com")) {
+            let matchedTweet = null;
+            let matchedVideo = null;
+
+            // 1. 优先通过 mediaId 匹配 DOM 图片或背景容器
+            if (mediaId) {
+              const img = document.querySelector(`img[src*="${mediaId}"]`);
+              const bgDiv = document.querySelector(`div[style*="${mediaId}"]`);
+              const target = img || bgDiv;
+              if (target) {
+                matchedTweet = target.closest('article[data-testid="tweet"]');
+                if (img) poster = img.src;
+                else if (bgDiv) {
+                  const m = (bgDiv.style.backgroundImage || "").match(/url\(["']?([^"']+)["']?\)/);
+                  if (m) poster = m[1];
+                }
+              }
+            }
+
+            // 2. 在页面中匹配对应的 video 元素（按时长严格匹配，或取当前播放中的 video）
+            const allVideos = Array.from(document.querySelectorAll("video"));
+            if (expectedDuration > 0) {
+              matchedVideo = allVideos.find((v) => Math.abs(v.duration - expectedDuration) <= 2);
+            }
+            if (!matchedVideo) {
+              matchedVideo = allVideos.find((v) => !v.paused) || (allVideos.length === 1 ? allVideos[0] : null);
+            }
+
+            if (matchedVideo) {
+              // 关键利器：若 video 已在播放并有画面，直接截取视频真实帧作为缩略图！
+              const frame = captureFrame(matchedVideo);
+              if (frame) poster = frame;
+
+              if (!matchedTweet) {
+                matchedTweet = matchedVideo.closest('article[data-testid="tweet"]');
+              }
+            }
+
+            // 3. 从匹配到的推文节点提取大图与文本内容
+            if (matchedTweet) {
+              mediaIdMatched = true;
+              if (!poster) {
+                poster = getTweetPoster(matchedTweet);
+              }
+              const userEl = matchedTweet.querySelector('div[data-testid="User-Name"]');
+              const textEl = matchedTweet.querySelector('div[data-testid="tweetText"]');
+              const linkEl = matchedTweet.querySelector('a[href*="/status/"]');
+              const user = userEl ? userEl.textContent.replace(/\s+/g, " ").trim() : "";
+              const text = textEl ? textEl.textContent.trim() : "";
+              if (linkEl?.href) tweetUrl = linkEl.href;
+              if (user || text) {
+                title = text ? (user ? `${user}: ${text.slice(0, 45)}` : text.slice(0, 50)) : user;
+              }
+            }
+
+            // 4. 单推文落地页 (/status/) 兜底
+            if (!title && location.pathname.includes("/status/")) {
               const mainTweet = document.querySelector('article[data-testid="tweet"]');
               if (mainTweet) {
+                matchedTweet = mainTweet;
+                if (!poster) poster = getTweetPoster(mainTweet);
                 const userEl = mainTweet.querySelector('div[data-testid="User-Name"]');
                 const textEl = mainTweet.querySelector('div[data-testid="tweetText"]');
                 const user = userEl ? userEl.textContent.replace(/\s+/g, " ").trim() : "";
@@ -236,9 +304,9 @@ const MediaSniffer = (() => {
                   title = text ? (user ? `${user}: ${text.slice(0, 45)}` : text.slice(0, 50)) : user;
                 }
               }
-              const ogImg = document.querySelector('meta[property="og:image"]')?.getAttribute("content") || "";
-              if (!poster && ogImg && !/logo|favicon/i.test(ogImg)) {
-                poster = ogImg;
+              if (!poster) {
+                const og = document.querySelector('meta[property="og:image"]')?.getAttribute("content") || "";
+                if (og && !/logo|favicon/i.test(og)) poster = og;
               }
             }
           }
@@ -246,13 +314,14 @@ const MediaSniffer = (() => {
           // --- B. 通用网页（B站、YouTube、微博等）处理 ---
           if (!poster && !location.hostname.includes("x.com") && !location.hostname.includes("twitter.com")) {
             const videos = Array.from(document.querySelectorAll("video"));
-            // 页面有多个视频时，必须按时长严格比对（误差 <= 2秒），禁止随意冒充
             const matchedVideo = expectedDuration > 0
               ? videos.find((v) => Math.abs(v.duration - expectedDuration) <= 2)
               : (videos.find((v) => !v.paused) || (videos.length === 1 ? videos[0] : null));
 
-            if (matchedVideo?.poster) {
-              poster = matchedVideo.poster;
+            if (matchedVideo) {
+              const frame = captureFrame(matchedVideo);
+              if (frame) poster = frame;
+              else if (matchedVideo.poster) poster = matchedVideo.poster;
             } else if (videos.length === 1) {
               const ogImg = document.querySelector('meta[property="og:image"]')?.getAttribute("content") || "";
               if (ogImg && !/yt_1200|logo|favicon|default_thumb/i.test(ogImg)) {
@@ -262,8 +331,10 @@ const MediaSniffer = (() => {
           }
 
           let dur = 0;
-          if (matchedVideo?.duration) {
-            dur = Math.round(matchedVideo.duration);
+          const vList = Array.from(document.querySelectorAll("video"));
+          const bestV = (expectedDuration > 0 ? vList.find((v) => Math.abs(v.duration - expectedDuration) <= 2) : null) || vList.find((v) => !v.paused) || vList[0];
+          if (bestV?.duration) {
+            dur = Math.round(bestV.duration);
           }
 
           return { poster, title, tweetUrl, mediaIdMatched, duration: dur };
@@ -275,18 +346,16 @@ const MediaSniffer = (() => {
         if (!data) continue;
 
         if (twitterMediaId) {
-          // X 条目：status 页的 tab.title 永远属于主推文，不代表本条目。
-          // 拿到匹配推文的标题才写入；任何形式的未命中都清空标题，
-          // 让弹窗显示 "X 视频 (id尾号)"，绝不允许主推文文字冒充
-          // @author ZHANGCHAO 2026/10/17
           if (data.mediaIdMatched && data.title) {
             entry.pageTitle = data.title;
-          } else {
-            entry.pageTitle = "";
+          } else if (data.title && !entry.pageTitle) {
+            entry.pageTitle = data.title;
           }
-          if (data.poster && !entry.thumbnail) entry.thumbnail = data.poster;
+          if (data.poster) {
+            entry.thumbnail = data.poster;
+          }
         } else {
-          if (data.poster && !entry.thumbnail) entry.thumbnail = data.poster;
+          if (data.poster) entry.thumbnail = data.poster;
           if (data.title && (!entry.pageTitle || entry.pageTitle.includes("主页") || entry.pageTitle === "X")) {
             entry.pageTitle = data.title;
           }
