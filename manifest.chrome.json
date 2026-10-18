@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VideoHarvest",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Download videos from almost any website. Direct media, HLS (m3u8) and DASH (mpd) supported.",
   "permissions": [
     "webRequest",

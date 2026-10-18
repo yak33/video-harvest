@@ -1,6 +1,6 @@
 {
   "name": "video-harvest",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "Dual-browser video downloader extension (direct media + HLS + DASH), Video DownloadHelper style.",

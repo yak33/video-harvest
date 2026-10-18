@@ -33,6 +33,18 @@ header h1 { font-size: 14px; font-weight: 600; flex: 1; letter-spacing: 0.3px; }
 }
 .url-bar button:hover { background: #f97316; }
 .url-bar button:disabled { background: #3f3f46; color: #71717a; cursor: not-allowed; }
+
+/* 链接解析状态提示：解释「为何会短暂出现一个后台标签页」 */
+.url-status {
+  padding: 6px 12px; line-height: 1.6;
+  background: #1f1f23; color: #a1a1aa;
+  border-bottom: 1px solid #27272a;
+  font-size: 11px;
+}
+.url-status[hidden] { display: none; }
+.url-status.info    { color: #93c5fd; }
+.url-status.success { color: #86efac; }
+.url-status.error   { color: #fca5a5; }
 .list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
 .empty { text-align: center; color: #71717a; padding: 48px 0; font-size: 13px; }
 .empty small { display: block; margin-top: 6px; color: #52525b; font-size: 11px; }

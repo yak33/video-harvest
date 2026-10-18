@@ -506,16 +506,43 @@ window.addEventListener("unload", () => {
 // --- 自定义视频地址/网页地址输入解析 ---
 const customUrlInput = document.getElementById("custom-url");
 const parseUrlBtn = document.getElementById("parse-url");
+const urlStatusEl = document.getElementById("url-status");
+
+// 解析状态提示：网页地址会在后台开一个静默标签页嗅探媒体，
+// 这里显式告知用户原因与时长，避免误以为插件擅自打开页面。
+// @author ZHANGCHAO 2026/10/18
+let urlStatusTimer = null;
+
+function showUrlStatus(text, kind = "info", autoHideMs = 0) {
+  if (!urlStatusEl) return;
+  if (urlStatusTimer) {
+    clearTimeout(urlStatusTimer);
+    urlStatusTimer = null;
+  }
+  urlStatusEl.textContent = text;
+  urlStatusEl.className = `url-status ${kind}`;
+  urlStatusEl.hidden = false;
+  if (autoHideMs > 0) {
+    urlStatusTimer = setTimeout(() => {
+      urlStatusEl.hidden = true;
+      urlStatusTimer = null;
+    }, autoHideMs);
+  }
+}
 
 async function parseCustomUrl() {
   const url = customUrlInput?.value?.trim();
   if (!url) return;
   if (!/^https?:\/\//i.test(url)) {
-    alert("请输入以 http:// 或 https:// 开头的有效网址");
+    showUrlStatus("请输入以 http:// 或 https:// 开头的有效网址", "error");
     return;
   }
   parseUrlBtn.disabled = true;
   parseUrlBtn.textContent = "解析中...";
+  showUrlStatus(
+    "正在解析地址…若为网页地址，会在后台打开一个静默标签页嗅探视频（不会切换你当前的页面），完成后自动关闭，最长约 15 秒。",
+    "info"
+  );
   try {
     const tab = await activeTab();
     const res = await browser.runtime.sendMessage({
@@ -528,8 +555,15 @@ async function parseCustomUrl() {
     }
     customUrlInput.value = "";
     await render();
+
+    if (res.mode === "direct") {
+      showUrlStatus("视频直链已加入列表，可直接点击「下载」。", "success", 6000);
+    } else {
+      const count = res.count || 1;
+      showUrlStatus(`已在后台标签页中提取到 ${count} 个视频，临时标签页已自动关闭。`, "success", 8000);
+    }
   } catch (err) {
-    alert(err?.message || "解析失败");
+    showUrlStatus(err?.message || "解析失败", "error");
   } finally {
     parseUrlBtn.disabled = false;
     parseUrlBtn.textContent = "解析";
