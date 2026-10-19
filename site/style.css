@@ -968,9 +968,169 @@ body {
   color: var(--text-subtle);
 }
 
-.disclaimer {
-  max-width: 450px;
-  text-align: right;
+/* -----------------------------------------
+   官方商店推荐展示区与下载卡片
+----------------------------------------- */
+.hero-subhint {
+  font-size: 13px;
+  color: var(--text-subtle);
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hero-subhint::before {
+  content: "✨";
+  font-size: 14px;
+}
+
+.btn-store {
+  gap: 10px;
+}
+
+.store-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+.store-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.store-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.6);
+}
+
+.store-card.edge:hover {
+  border-color: rgba(0, 120, 215, 0.5);
+}
+
+.store-card.firefox:hover {
+  border-color: rgba(255, 113, 57, 0.5);
+}
+
+.store-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  opacity: 0.9;
+}
+
+.store-card.edge::before {
+  background: linear-gradient(90deg, #0078d7, #00c7fd);
+}
+
+.store-card.firefox::before {
+  background: linear-gradient(90deg, #ff7139, #ff9400);
+}
+
+.store-card-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.store-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.store-icon-wrap.edge {
+  background: rgba(0, 120, 215, 0.15);
+  color: #0078d7;
+  border: 1px solid rgba(0, 120, 215, 0.3);
+}
+
+.store-icon-wrap.firefox {
+  background: rgba(255, 113, 57, 0.15);
+  color: #ff7139;
+  border: 1px solid rgba(255, 113, 57, 0.3);
+}
+
+.store-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  margin-bottom: 6px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.store-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.store-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  flex-grow: 1;
+}
+
+.store-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  margin-bottom: 24px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.store-btn {
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 14px;
+}
+
+.dev-install-header {
+  margin-top: 32px;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.dev-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #e4e4e7;
+  margin-bottom: 6px;
+}
+
+.dev-sub {
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 /* 移动端响应式 */

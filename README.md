@@ -10,8 +10,13 @@
 </p>
 
 <p align="center">
+  <a href="https://microsoftedge.microsoft.com/addons/detail/videoharvest/apglnmjiabmnpdcjcihopfcjbajgkmik" target="_blank">
+    <img src="https://img.shields.io/badge/Edge-Edge_Add--ons-0078D7?style=flat-square&logo=microsoftedge&logoColor=white" alt="Edge Add-ons" />
+  </a>
+  <a href="https://addons.mozilla.org/zh-CN/firefox/addon/videoharvest/" target="_blank">
+    <img src="https://img.shields.io/badge/Firefox-Add--ons-FF7139?style=flat-square&logo=firefoxbrowser&logoColor=white" alt="Firefox Add-ons" />
+  </a>
   <img src="https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white" alt="Chrome MV3" />
-  <img src="https://img.shields.io/badge/Firefox-Manifest_V2-FF7139?style=flat-square&logo=firefoxbrowser&logoColor=white" alt="Firefox MV2" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/Dependencies-Zero_NPM-blueviolet?style=flat-square" alt="Zero NPM" />
 </p>
@@ -78,19 +83,34 @@ video-harvest/
 │   ├── lib/                 # 核心基础库：browser-polyfill, mux.min.js, hls.player.min.js
 │   └── icons/               # 矢量微拟物透明图标集合 (16/32/48/128)
 ├── dist/                    # 构建产物（dist/chrome 与 dist/firefox 及打包好的 ZIP）
-├── docs/                    # 官方产品展示与静态站点（支持 GitHub Pages）
+├── site/                    # 官方产品展示与静态站点（支持 GitHub Pages / Vercel）
 └── build.mjs                # 原生零依赖打包构建脚本
 ```
 
-### 双浏览器适配规范
-| 运行环境 | 技术方案 | 优势 |
-| :--- | :--- | :--- |
-| **Chrome (MV3)** | Service Worker + Offscreen Document | 符合 Chrome 商店最新审查规范，通过独立的离屏沙盒规避 Service Worker 无法使用 DOM / Blob 的限制 |
-| **Firefox (MV2)** | Persistent Background Page | 原生常驻后台，直接调起引擎，零 IPC 消息中转损耗 |
+### 浏览器适配规范与商店分发
+| 运行环境 | 官方商店分发 | 技术方案 | 特性优势 |
+| :--- | :--- | :--- | :--- |
+| **Microsoft Edge** | [![Edge Add-ons](https://img.shields.io/badge/Edge-Add--ons-0078D7?style=flat-square&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/videoharvest/apglnmjiabmnpdcjcihopfcjbajgkmik) [官方商店已上架](https://microsoftedge.microsoft.com/addons/detail/videoharvest/apglnmjiabmnpdcjcihopfcjbajgkmik) | Manifest V3 (Service Worker + Offscreen) | 微软官方审核上架，一键安装并支持静默自动更新 |
+| **Mozilla Firefox** | [![Firefox Add-ons](https://img.shields.io/badge/Firefox-Add--ons-FF7139?style=flat-square&logo=firefoxbrowser&logoColor=white)](https://addons.mozilla.org/zh-CN/firefox/addon/videoharvest/) [官方商店已上架](https://addons.mozilla.org/zh-CN/firefox/addon/videoharvest/) | Manifest V2 (Persistent Background Page) | Mozilla 官方审核上架，原生常驻后台，零 IPC 损耗 |
+| **Google Chrome** | 开发者模式载入（待上架 Web Store） | Manifest V3 (Service Worker + Offscreen) | 离屏沙盒规避 SW 无 DOM/Blob 限制，支持 Chromium 全系 |
 
 ---
 
-## 🚀 本地构建与安装
+## 🚀 安装与获取
+
+### 1. 官方商店一键直装（推荐）
+
+无需下载源码或手动开启开发者模式，推荐直接通过官方扩展商店一键获取，享受安全审查认证与静默自动更新：
+
+| 平台 / 浏览器 | 安装入口 | 状态 | 说明 |
+| :--- | :--- | :--- | :--- |
+| **Microsoft Edge** | 🌊 [前往 Microsoft Edge 外接程序商店获取](https://microsoftedge.microsoft.com/addons/detail/videoharvest/apglnmjiabmnpdcjcihopfcjbajgkmik) | ✅ 官方审核已上架 | Edge 商店一键安装，自动更新 |
+| **Mozilla Firefox** | 🦊 [前往 Firefox 附加组件中心 (AMO) 获取](https://addons.mozilla.org/zh-CN/firefox/addon/videoharvest/) | ✅ 官方审核已上架 | 火狐商店一键安装，自动更新 |
+| **Google Chrome / Chromium** | 本地源码载入（待提交 Web Store） | 📦 待提交 | 可直接下载 Release 或按下方步骤开发者模式载入 |
+
+---
+
+### 2. 本地构建与离线安装（开发者）
 
 ### 1. 编译构建
 本项目零第三方 npm 生产运行时依赖，只需本机具备 Node.js（v16+）：
